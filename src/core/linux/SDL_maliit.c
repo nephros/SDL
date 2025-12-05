@@ -62,11 +62,12 @@ typedef struct _MaliitIMContext {
 
 typedef struct _MaliitClient
 {
-    SDL_DBusContext *dbus;
     DBusConnection *conn;
 
     MaliitIMContext *context;
     MaliitServer *server;
+
+    char* id;
 
     SDL_Rect cursor_rect;
 } MaliitClient;
@@ -155,6 +156,32 @@ static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
     return text_bytes;
 }
 
+/*
+static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
+{
+    DBusMessage *msg;
+    SDL_Window *focused_win = NULL;
+    SDL_SysWMinfo info;
+
+    focused_win = SDL_GetKeyboardFocus();
+    if (!focused_win) {
+        return;
+    }
+
+    SDL_VERSION(&info.version);
+    if (!SDL_GetWindowWMInfo(focused_win, &info)) {
+        return;
+    }
+
+    msg = dbus_message_new_method(MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, NULL);
+    msg->append_args(conn, 1, "focusState", SDL_TRUE);
+    //msg->append_args(conn, 1, "winId", "SDL_App");
+    //msg->append_args(conn, 1, "winId", info.wl_display);
+    //dbus->connection_send(conn, msg, NULL);
+}
+*/
+
+
 static Sint32 Maliit_GetPreeditCursorByte(SDL_DBusContext *dbus, DBusMessage *msg)
 {
     Sint32 byte = -1;
@@ -178,6 +205,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
     if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "commitString")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
         DBusMessageIter iter;
         const char *text = NULL;
 
@@ -200,6 +228,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     }
 
     if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "updatePreedit")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updatePreedit");
         char *text = NULL;
         Sint32 start_pos, end_pos;
         size_t text_bytes = Maliit_GetPreeditString(dbus, msg, &text, &start_pos, &end_pos);
@@ -234,7 +263,10 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     }
 
     if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "keyEvent")) {
-        return DBUS_HANDLER_RESULT_HANDLED;
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Event not yet handled: %s", "keyEvent");
+    }
+    if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "imInitiatedHide")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Event not yet handled: %s", "imInitiatedHide");
     }
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
@@ -311,10 +343,10 @@ SDL_bool SDL_Maliit_Init(void)
     const char* addr = NULL;
     SDL_DBusContext* dbus = SDL_DBus_GetContext();
 
-    //maliit_client.cursor_rect.x = -1;
-    //maliit_client.cursor_rect.y = -1;
-    //maliit_client.cursor_rect.w = 0;
-    //maliit_client.cursor_rect.h = 0;
+    maliit_client.cursor_rect.x = -1;
+    maliit_client.cursor_rect.y = -1;
+    maliit_client.cursor_rect.w = 0;
+    maliit_client.cursor_rect.h = 0;
 
     addr = MaliitClientGetAddress();
 
@@ -336,20 +368,28 @@ SDL_bool SDL_Maliit_Init(void)
 
     maliit_client.conn = conn;
     MaliitClientICCallMethod(&maliit_client, "activateContext");
-    //return MaliitClientCreateIC(&maliit_client);
+    return SDL_TRUE;
 }
 
 void SDL_Maliit_Quit(void)
 {
     MaliitClientICCallMethod(&maliit_client, "hideInputMethod");
     if (maliit_client.conn) {
-        maliit_client.dbus->connection_close(maliit_client.conn);
+        SDL_DBusContext *dbus;
+        dbus = SDL_DBus_GetContext();
+        dbus->connection_close(maliit_client.conn);
     }
 }
 
 void SDL_Maliit_SetFocus(SDL_bool focused)
 {
-    MaliitClientICCallMethod(&maliit_client, focused ? "hideInputMethod" : "showInputMethod" );
+    if (focused) {
+        MaliitClientICCallMethod(&maliit_client, "activateContext");
+        //MaliitClientICCallMethod(&maliit_client, "updateWidgetInformation");
+        MaliitClientICCallMethod(&maliit_client, "showInputMethod");
+    } else {
+        MaliitClientICCallMethod(&maliit_client, "hideInputMethod");
+    }
 }
 
 void SDL_Maliit_Reset(void)
@@ -364,14 +404,12 @@ SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
     Uint32 is_release = (state == SDL_RELEASED);
     Uint32 event_time = 0;
 
-    /*
-    if (!maliit_client.ic_path) {
+    if (!maliit_client.conn) {
         return SDL_FALSE;
     }
-    */
 
     /*
-    if (SDL_DBus_CallMethodOnConnection(client->conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "processKeyEvent",
+    if (SDL_DBus_CallMethodOnConnection(maliit_client.conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "processKeyEvent",
                             DBUS_TYPE_UINT32, &keysym, DBUS_TYPE_UINT32, &keycode, DBUS_TYPE_UINT32, &mod_state, DBUS_TYPE_BOOLEAN, &is_release, DBUS_TYPE_UINT32, &event_time, DBUS_TYPE_INVALID,
                             DBUS_TYPE_BOOLEAN, &handled, DBUS_TYPE_INVALID)) {
         if (handled) {
@@ -406,45 +444,26 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
 
     SDL_GetWindowPosition(focused_win, &x, &y);
 
-//#ifdef SDL_VIDEO_DRIVER_X11
-//    if (info.subsystem == SDL_SYSWM_X11) {
-//        SDL_DisplayData *displaydata = (SDL_DisplayData *) SDL_GetDisplayForWindow(focused_win)->driverdata;
-//
-//        Display *x_disp = info.info.x11.display;
-//        Window x_win = info.info.x11.window;
-//        int x_screen = displaydata->screen;
-//        Window unused;
-//        X11_XTranslateCoordinates(x_disp, x_win, RootWindow(x_disp, x_screen), 0, 0, &x, &y, &unused);
-//    }
-//#endif
-
-    if (cursor->x == -1 && cursor->y == -1 && cursor->w == 0 && cursor->h == 0) {
-        /* move to bottom left */
-        int w = 0, h = 0;
-        SDL_GetWindowSize(focused_win, &w, &h);
-        cursor->x = 0;
-        cursor->y = h;
+    if (!maliit_client.conn) {
+        return;
     }
 
-    x += cursor->x;
-    y += cursor->y;
-
-    /*
-    SDL_DBus_CallVoidMethodOnConnection(client->dbus->connection, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateInputMethodArea",
-                            DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
-    */
+    //SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateInputMethodArea",
+    //                        DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
 }
 
 void SDL_Maliit_PumpEvents(void)
 {
-//    SDL_DBusContext *dbus = maliit_client.dbus;
-//    DBusConnection *conn = dbus->session_conn;
-//
-//    dbus->connection_read_write(conn, 0);
-//
-//    while (dbus->connection_dispatch(conn) == DBUS_DISPATCH_DATA_REMAINS) {
-//        /* Do nothing, actual work happens in DBus_MessageFilter */
-//    }
+    SDL_DBusContext *dbus;
+    DBusConnection *conn;
+    dbus = SDL_DBus_GetContext();
+    conn = maliit_client.conn;
+
+    dbus->connection_read_write(conn, 0);
+
+    while (dbus->connection_dispatch(conn) == DBUS_DISPATCH_DATA_REMAINS) {
+        /* Do nothing, actual work happens in DBus_MessageFilter */
+    }
 }
 
 /* vi: set ts=4 sw=4 expandtab: */
