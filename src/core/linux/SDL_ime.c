@@ -23,6 +23,7 @@
 #include "SDL_ime.h"
 #include "SDL_ibus.h"
 #include "SDL_fcitx.h"
+#include "SDL_maliit.h"
 
 typedef SDL_bool (*_SDL_IME_Init)(void);
 typedef void (*_SDL_IME_Quit)(void);
@@ -43,9 +44,11 @@ static _SDL_IME_PumpEvents SDL_IME_PumpEvents_Real = NULL;
 static void InitIME(void)
 {
     static SDL_bool inited = SDL_FALSE;
-#ifdef HAVE_FCITX
+#if defined(HAVE_FCITX) || defined(HAVE_MALIIT)
     const char *im_module = SDL_getenv("SDL_IM_MODULE");
+#if defined(HAVE_FCITX)
     const char *xmodifiers = SDL_getenv("XMODIFIERS");
+#endif
 #endif
 
     if (inited == SDL_TRUE) {
@@ -66,6 +69,20 @@ static void InitIME(void)
         SDL_IME_ProcessKeyEvent_Real = SDL_Fcitx_ProcessKeyEvent;
         SDL_IME_UpdateTextRect_Real = SDL_Fcitx_UpdateTextRect;
         SDL_IME_PumpEvents_Real = SDL_Fcitx_PumpEvents;
+    }
+#endif /* HAVE_FCITX */
+
+    /* See if Maliit IME support is being requested */
+#ifdef HAVE_MALIIT
+    if (!SDL_IME_Init_Real &&
+        ((im_module && SDL_strcmp(im_module, "maliit") == 0))) {
+        SDL_IME_Init_Real = SDL_Maliit_Init;
+        SDL_IME_Quit_Real = SDL_Maliit_Quit;
+        SDL_IME_SetFocus_Real = SDL_Maliit_SetFocus;
+        SDL_IME_Reset_Real = SDL_Maliit_Reset;
+        SDL_IME_ProcessKeyEvent_Real = SDL_Maliit_ProcessKeyEvent;
+        SDL_IME_UpdateTextRect_Real = SDL_Maliit_UpdateTextRect;
+        SDL_IME_PumpEvents_Real = SDL_Maliit_PumpEvents;
     }
 #endif /* HAVE_FCITX */
 
