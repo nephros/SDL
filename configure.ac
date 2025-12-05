@@ -2987,6 +2987,28 @@ CheckFcitx()
     fi
 }
 
+dnl See if the platform has Maliit IME support.
+CheckMaliit()
+{
+    AC_ARG_ENABLE(maliit,
+[AS_HELP_STRING([--enable-maliit], [enable maliit support [default=no]])],
+                  , enable_maliit=no)
+    if test x$enable_maliit = xyes; then
+        AC_MSG_CHECKING(for maliit support)
+        have_maliit=no
+        if test x$enable_ime != xyes; then
+            AC_MSG_WARN([IME support is required for maliit.])
+        elif test x$have_dbus_dbus_h_hdr != xyes; then
+            AC_MSG_WARN([DBus support is required for maliit.])
+        else
+            have_maliit=yes
+            AC_DEFINE(HAVE_MALIIT, 1, [ ])
+            SOURCES="$SOURCES $srcdir/src/core/linux/SDL_maliit.c"
+        fi
+        AC_MSG_RESULT($have_maliit)
+    fi
+}
+
 dnl Check to see if GameController framework support is desired
 CheckJoystickMFI()
 {
@@ -3825,6 +3847,7 @@ case "$host" in
         CheckInotify
         CheckIBus
         CheckFcitx
+        CheckMaliit
         case $ARCH in
           linux)
               CheckInputKD
@@ -4969,6 +4992,12 @@ if test x$have_fcitx = xyes; then
 else
     SUMMARY="${SUMMARY}Using fcitx         : NO\n"
 fi
+if test x$have_maliit = xyes; then
+    SUMMARY="${SUMMARY}Using maliit         : YES\n"
+else
+    SUMMARY="${SUMMARY}Using maliit         : NO\n"
+fi
+
 
 if test x$WARN_ABOUT_ARM_SIMD_ASM_MIT = xyes; then
     SUMMARY="${SUMMARY}\nSDL is being built with ARM SIMD optimizations, which\n"
