@@ -1594,6 +1594,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
           target_include_directories(sdl-build-options INTERFACE "${DBUS_INCLUDE_DIRS}")
           # Fcitx need only dbus.
           set(HAVE_FCITX TRUE)
+          set(HAVE_MALIIT TRUE)
           set(HAVE_DBUS TRUE)
         endif()
       endif()
@@ -1608,7 +1609,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
         endif()
       endif()
 
-      if (HAVE_IBUS_IBUS_H OR HAVE_FCITX)
+      if (HAVE_IBUS_IBUS_H OR HAVE_FCITX OR HAVE_MALIIT)
         set(SDL_USE_IME 1)
       endif()
 
@@ -1638,6 +1639,10 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
 
     if(HAVE_FCITX)
       list(APPEND SOURCE_FILES "${SDL2_SOURCE_DIR}/src/core/linux/SDL_fcitx.c")
+    endif()
+
+    if(HAVE_MALIIT)
+      list(APPEND SOURCE_FILES "${SDL2_SOURCE_DIR}/src/core/linux/SDL_maliit.c")
     endif()
 
     if(HAVE_LIBUDEV_H)
