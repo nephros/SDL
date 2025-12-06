@@ -68,6 +68,8 @@ typedef struct _MaliitClient
     MaliitServer *server;
 
     char* id;
+    SDL_bool shown;
+    SDL_bool focus;
 
     SDL_Rect cursor_rect;
 } MaliitClient;
@@ -156,9 +158,38 @@ static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
     return text_bytes;
 }
 
-/*
+static void Maliit_updateOrientation()
+{
+    SDL_DBusContext *dbus;
+    DBusMessage *msg;
+
+    int orientation = 270;
+    SDL_DisplayOrientation o = SDL_GetDisplayOrientation(0);
+    if (o == SDL_ORIENTATION_UNKNOWN) {
+        orientation = 270;
+    }
+    if (o == SDL_ORIENTATION_PORTRAIT) {
+        orientation = 270;
+    }
+    if (o == SDL_ORIENTATION_PORTRAIT_FLIPPED) {
+        orientation = 90;
+    }
+    if (o == SDL_ORIENTATION_LANDSCAPE) {
+        orientation = 180;
+    }
+    if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
+        orientation = 0;
+    }
+    dbus = SDL_DBus_GetContext();
+    msg = dbus->message_new_method_call(NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "appOrientationChanged");
+    dbus->message_append_args(msg, DBUS_TYPE_INT32, orientation);
+    //DBusMessage* result = dbus->connection_send(conn, msg, DBUS_TYPE_INVALID);
+    dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+}
+
 static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
 {
+    SDL_DBusContext *dbus;
     DBusMessage *msg;
     SDL_Window *focused_win = NULL;
     SDL_SysWMinfo info;
@@ -168,18 +199,19 @@ static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
         return;
     }
 
+    Maliit_updateOrientation(focused_win);
+
     SDL_VERSION(&info.version);
     if (!SDL_GetWindowWMInfo(focused_win, &info)) {
         return;
     }
 
-    msg = dbus_message_new_method(MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, NULL);
-    msg->append_args(conn, 1, "focusState", SDL_TRUE);
-    //msg->append_args(conn, 1, "winId", "SDL_App");
-    //msg->append_args(conn, 1, "winId", info.wl_display);
-    //dbus->connection_send(conn, msg, NULL);
+    dbus = SDL_DBus_GetContext();
+    msg = dbus->message_new_method_call(NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateWidgetInformation");
+    dbus->message_append_args(msg, DBUS_TYPE_STRING, "SDL_App");
+    dbus->message_append_args(msg, DBUS_TYPE_BOOLEAN, focus);
+    dbus->connection_send(conn, msg, DBUS_TYPE_INVALID);
 }
-*/
 
 
 static Sint32 Maliit_GetPreeditCursorByte(SDL_DBusContext *dbus, DBusMessage *msg)
@@ -270,6 +302,15 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     }
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
+
+static void MaliitClientISCallMethod(MaliitClient *client, const char *method)
+{
+    if (!client->conn) {
+        return;
+    }
+    SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID);
+}
+
 
 static void MaliitClientICCallMethod(MaliitClient *client, const char *method)
 {
@@ -384,11 +425,12 @@ void SDL_Maliit_Quit(void)
 void SDL_Maliit_SetFocus(SDL_bool focused)
 {
     if (focused) {
-        MaliitClientICCallMethod(&maliit_client, "activateContext");
-        //MaliitClientICCallMethod(&maliit_client, "updateWidgetInformation");
-        MaliitClientICCallMethod(&maliit_client, "showInputMethod");
+        MaliitClientISCallMethod(&maliit_client, "activateContext");
+        //MaliitClientISCallMethod(&maliit_client, "updateWidgetInformation"); // s windowId, b focus
+        //MaliitClientISCallMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
+        MaliitClientISCallMethod(&maliit_client, "showInputMethod");
     } else {
-        MaliitClientICCallMethod(&maliit_client, "hideInputMethod");
+        MaliitClientISCallMethod(&maliit_client, "hideInputMethod");
     }
 }
 
@@ -408,8 +450,7 @@ SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
         return SDL_FALSE;
     }
 
-    /*
-    if (SDL_DBus_CallMethodOnConnection(maliit_client.conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "processKeyEvent",
+    if (SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "processKeyEvent",
                             DBUS_TYPE_UINT32, &keysym, DBUS_TYPE_UINT32, &keycode, DBUS_TYPE_UINT32, &mod_state, DBUS_TYPE_BOOLEAN, &is_release, DBUS_TYPE_UINT32, &event_time, DBUS_TYPE_INVALID,
                             DBUS_TYPE_BOOLEAN, &handled, DBUS_TYPE_INVALID)) {
         if (handled) {
@@ -417,7 +458,6 @@ SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
             return SDL_TRUE;
         }
     }
-    */
     return SDL_FALSE;
 }
 
