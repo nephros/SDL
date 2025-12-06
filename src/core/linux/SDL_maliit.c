@@ -76,6 +76,8 @@ typedef struct _MaliitClient
 
 static MaliitClient maliit_client;
 
+static char *GetAppName(void);
+
 static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
                        DBusMessage *msg,
                        char **ret,
@@ -206,9 +208,12 @@ static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
         return;
     }
 
+    char *appname = GetAppName();
+
     dbus = SDL_DBus_GetContext();
     msg = dbus->message_new_method_call(NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateWidgetInformation");
-    dbus->message_append_args(msg, DBUS_TYPE_STRING, "SDL_App");
+    //dbus->message_append_args(msg, DBUS_TYPE_STRING, "SDL_App");
+    dbus->message_append_args(msg, DBUS_TYPE_STRING, appname);
     dbus->message_append_args(msg, DBUS_TYPE_BOOLEAN, focus);
     dbus->connection_send(conn, msg, DBUS_TYPE_INVALID);
 }
@@ -505,5 +510,27 @@ void SDL_Maliit_PumpEvents(void)
         /* Do nothing, actual work happens in DBus_MessageFilter */
     }
 }
+
+static char *GetAppName(void)
+{
+    char *spot;
+    char procfile[1024];
+    char linkfile[1024];
+    int linksize;
+
+    (void)SDL_snprintf(procfile, sizeof(procfile), "/proc/%d/exe", getpid());
+    linksize = readlink(procfile, linkfile, sizeof(linkfile) - 1);
+    if (linksize > 0) {
+        linkfile[linksize] = '\0';
+        spot = SDL_strrchr(linkfile, '/');
+        if (spot) {
+            return SDL_strdup(spot + 1);
+        } else {
+            return SDL_strdup(linkfile);
+        }
+    }
+    return SDL_strdup("SDL_App");
+}
+
 
 /* vi: set ts=4 sw=4 expandtab: */
