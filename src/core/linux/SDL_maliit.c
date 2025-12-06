@@ -189,7 +189,7 @@ static void Maliit_updateOrientation()
     dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
 }
 
-static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
+static void Maliit_updateWidgetInfo(SDL_bool focus)
 {
     SDL_DBusContext *dbus;
     DBusMessage *msg;
@@ -215,7 +215,7 @@ static void Maliit_updateWidgetInfo(DBusConnection *conn, SDL_bool focus)
     //dbus->message_append_args(msg, DBUS_TYPE_STRING, "SDL_App");
     dbus->message_append_args(msg, DBUS_TYPE_STRING, appname);
     dbus->message_append_args(msg, DBUS_TYPE_BOOLEAN, focus);
-    dbus->connection_send(conn, msg, DBUS_TYPE_INVALID);
+    dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
 }
 
 
@@ -386,6 +386,7 @@ static Uint32 Maliit_ModState(void)
 
 SDL_bool SDL_Maliit_Init(void)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
     const char* addr = NULL;
     SDL_DBusContext* dbus = SDL_DBus_GetContext();
 
@@ -419,6 +420,7 @@ SDL_bool SDL_Maliit_Init(void)
 
 void SDL_Maliit_Quit(void)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Quit");
     MaliitClientICCallMethod(&maliit_client, "hideInputMethod");
     if (maliit_client.conn) {
         SDL_DBusContext *dbus;
@@ -429,9 +431,10 @@ void SDL_Maliit_Quit(void)
 
 void SDL_Maliit_SetFocus(SDL_bool focused)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
     if (focused) {
         MaliitClientISCallMethod(&maliit_client, "activateContext");
-        //MaliitClientISCallMethod(&maliit_client, "updateWidgetInformation"); // s windowId, b focus
+        Maliit_updateWidgetInfo(focused);
         //MaliitClientISCallMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
         MaliitClientISCallMethod(&maliit_client, "showInputMethod");
     } else {
@@ -441,6 +444,7 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
 
 void SDL_Maliit_Reset(void)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Reset");
     MaliitClientICCallMethod(&maliit_client, "reset");
 }
 
