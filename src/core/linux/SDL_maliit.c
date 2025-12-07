@@ -408,12 +408,15 @@ SDL_bool SDL_Maliit_Init(void)
         return SDL_FALSE;
     }
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     dbus->bus_add_match(conn,
                         "type='signal', interface='com.meego.inputmethod.inputcontext1'",
                         NULL);
     dbus->connection_add_filter(conn, &DBus_MessageFilter, NULL, NULL);
 
     maliit_client.conn = conn;
+
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
     MaliitClientICCallMethod(&maliit_client, "activateContext");
     return SDL_TRUE;
 }
