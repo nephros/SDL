@@ -442,7 +442,7 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
 void SDL_Maliit_Reset(void)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Reset");
-    MaliitClientICCallMethod(&maliit_client, "reset");
+    MaliitClientISCallMethod(&maliit_client, "reset");
 }
 
 SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
