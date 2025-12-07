@@ -174,6 +174,7 @@ static void Maliit_updateOrientation()
 
 static void Maliit_updateWidgetInfo(SDL_bool focus)
 {
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateWidgetInfo, focus: %b", focus);
     SDL_Window *focused_win = NULL;
     SDL_SysWMinfo info;
 
@@ -247,6 +248,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     maliit_client.dbus->message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &focusChanged);
 
     maliit_client.dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+    maliit_client.dbus->connection_flush(maliit_client.conn);
     maliit_client.dbus->message_unref(msg);
 
 /*
