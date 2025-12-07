@@ -315,7 +315,9 @@ static void MaliitClientISCallMethod(MaliitClient *client, const char *method)
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling: IMS method: %s", method);
     //SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID);
-    SDL_DBus_CallVoidMethodOnConnection(NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID);
+    if(SDL_DBus_CallVoidMethodOnConnection(NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling: IMS method FAILED");
+    }
 }
 
 
@@ -325,7 +327,9 @@ static void MaliitClientICCallMethod(MaliitClient *client, const char *method)
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling: IMC method: %s", method);
-    SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, method, DBUS_TYPE_INVALID);
+    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling: IMC method FAILED");
+    }
 }
 
 static char* MaliitClientGetAddress(void)
@@ -419,8 +423,9 @@ SDL_bool SDL_Maliit_Init(void)
 
     maliit_client.conn = conn;
 
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
-    MaliitClientISCallMethod(&maliit_client, "activateContext");
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Init done");
+    //SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
+    //MaliitClientISCallMethod(&maliit_client, "activateContext");
     return SDL_TRUE;
 }
 
@@ -439,11 +444,13 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
     if (focused) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
         MaliitClientISCallMethod(&maliit_client, "activateContext");
         Maliit_updateWidgetInfo(focused);
         //MaliitClientISCallMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
         MaliitClientISCallMethod(&maliit_client, "showInputMethod");
     } else {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
         MaliitClientISCallMethod(&maliit_client, "hideInputMethod");
     }
 }
