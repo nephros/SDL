@@ -304,8 +304,7 @@ static void MaliitClientISCallMethod(MaliitClient *client, const char *method)
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method: %s", method);
-    //SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID);
-    if(SDL_DBus_CallVoidMethodOnConnection(NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method FAILED");
     }
 }
