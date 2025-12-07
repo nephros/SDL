@@ -56,6 +56,10 @@ typedef struct _MaliitClient
 
     char* id;
 
+    SDL_bool active;
+    SDL_bool hidden;
+    SDL_bool focus;
+
     SDL_Rect cursor_rect;
 } MaliitClient;
 
@@ -315,6 +319,12 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "imInitiatedHide");
         SDL_SendEditingText("", 0, 0);
+        maliit_client.hidden = SDL_TRUE;
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "activationLostEvent")) {
+        maliit_client.active = SDL_FALSE;
+        maliit_client.hidden = SDL_TRUE;
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
@@ -509,9 +519,12 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
         Maliit_updateWidgetInfo(focused);
         //MaliitClientCallServerMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
         MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
+        maliit_client.active = SDL_TRUE;
+        maliit_client.hidden = SDL_FALSE;
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
         MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
+        maliit_client.hidden = SDL_TRUE;
     }
 }
 
