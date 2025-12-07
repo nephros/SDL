@@ -147,9 +147,6 @@ static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
 
 static void Maliit_updateOrientation()
 {
-    SDL_DBusContext *dbus;
-    DBusMessage *msg;
-
     int orientation = 270;
     SDL_DisplayOrientation o = SDL_GetDisplayOrientation(0);
     if (o == SDL_ORIENTATION_UNKNOWN) {
@@ -167,11 +164,9 @@ static void Maliit_updateOrientation()
     if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
         orientation = 0;
     }
-    dbus = maliit_client.dbus;
-    msg = dbus->message_new_method_call(NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "appOrientationChanged");
-    dbus->message_append_args(msg, DBUS_TYPE_INT32, orientation);
-    //DBusMessage* result = dbus->connection_send(conn, msg, DBUS_TYPE_INVALID);
-    dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+    // note that this goes to Server, not context.
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, "appOrientationChanged",
+                            DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID);
 }
 
 static void Maliit_updateWidgetInfo(SDL_bool focus)
