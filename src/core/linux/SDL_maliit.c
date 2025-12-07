@@ -186,12 +186,42 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     }
 
     char *appname = GetAppName();
+    const char *key;
 
+    DBusMessage *msg = maliit_client.dbus->message_new_method_call(NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation");
+    DBusMessageIter args, dict, entry, variant;
+    
+    key = "winId";
+    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);
+    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);
+    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &appname);
+    maliit_client.dbus->message_iter_close_container(&entry, &variant);
+    maliit_client.dbus->message_iter_close_container(&dict, &entry);
+    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+    key = "focusState";
+    Uint32 value = focus ? 1 : 0;
+    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);
+    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);
+    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);
+    maliit_client.dbus->message_iter_close_container(&entry, &variant);
+    maliit_client.dbus->message_iter_close_container(&dict, &entry);
+    maliit_client.dbus->message_iter_close_container(&args, &dict);
+
+    // Append boolean
+    dbus_bool_t focusChanged = TRUE;
+    maliit_client.dbus->message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &focusChanged);
+
+    maliit_client.dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+    maliit_client.dbus->message_unref(msg);
+
+/*
     // FIXME: is the correct signature <arg type="a{sv}" name="stateInformation"/>??
     SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation",
                             DBUS_TYPE_STRING, &appname,
                             DBUS_TYPE_BOOLEAN, &focus,
                             DBUS_TYPE_INVALID);
+*/
 }
 
 
@@ -319,7 +349,10 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
                 break;
             }
             case DBUS_TYPE_ARRAY:
-                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "[ARRAY]");
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "{ARRAY}");
+                break;
+            case DBUS_TYPE_STRUCT:
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "(STRUCT)");
                 break;
         }
     }
