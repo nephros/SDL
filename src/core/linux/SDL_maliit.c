@@ -309,7 +309,7 @@ static void MaliitClientCallServerMethod(MaliitClient *client, const char *metho
     }
 }
 
-
+/* currently unused
 static void MaliitClientCallContextMethod(MaliitClient *client, const char *method)
 {
     if (!client->conn) {
@@ -320,6 +320,7 @@ static void MaliitClientCallContextMethod(MaliitClient *client, const char *meth
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method FAILED");
     }
 }
+*/
 
 static char* MaliitClientGetAddress(void)
 {
