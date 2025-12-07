@@ -504,7 +504,6 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
 
 void SDL_Maliit_PumpEvents(void)
 {
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Pump");
     SDL_DBusContext *dbus = maliit_client.dbus;
     DBusConnection *conn  = maliit_client.conn;
 
