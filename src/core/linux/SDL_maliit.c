@@ -38,11 +38,11 @@
 #define MALIIT_ADDRESS_INTERFACE "org.maliit.Server.Address"
 #define MALIIT_ADDRESS_PATH "/org/maliit/server/address"
 
-#define MALIIT_IMS_INTERFACE "com.meego.inputmethod.uiserver1"
-#define MALIIT_IMS_PATH "/com/meego/inputmethod/uiserver1"
+#define MALIIT_IMSERVER_INTERFACE "com.meego.inputmethod.uiserver1"
+#define MALIIT_IMSERVER_PATH "/com/meego/inputmethod/uiserver1"
 
-#define MALIIT_IMC_INTERFACE "com.meego.inputmethod.inputcontext1"
-#define MALIIT_IMC_PATH "/com/meego/inputmethod/inputcontext"
+#define MALIIT_IMCONTEXT_INTERFACE "com.meego.inputmethod.inputcontext1"
+#define MALIIT_IMCONTEXT_PATH "/com/meego/inputmethod/inputcontext"
 
 #define DBUS_LOCAL_PATH "/org/freedesktop/DBus/Local" ;
 #define DBUS_LOCAL_INTERFACE "org.freedesktop.DBus.Local" ;
@@ -165,7 +165,7 @@ static void Maliit_updateOrientation()
         orientation = 0;
     }
     // note that this goes to Server, not context.
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, "appOrientationChanged",
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
                             DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID);
 }
 
@@ -189,7 +189,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     char *appname = GetAppName();
 
     // note that this goes to Server, not context.
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, "updateWidgetInformation",
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation",
                             DBUS_TYPE_STRING, &appname,
                             DBUS_TYPE_BOOLEAN, &focus,
                             DBUS_TYPE_INVALID);
@@ -224,7 +224,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: message is NULL!");
     }
 
-    if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "commitString")) {
+    if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
         DBusMessageIter iter;
         const char *text = NULL;
@@ -250,7 +250,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
-    if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "updatePreedit")) {
+    if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updatePreedit")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updatePreedit");
         char *text = NULL;
         Sint32 start_pos, end_pos;
@@ -285,12 +285,16 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
-    if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "keyEvent")) {
+    if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "keyEvent")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "keyEvent");
-    }
-    if (dbus->message_is_signal(msg, MALIIT_IMC_INTERFACE, "imInitiatedHide")) {
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "imInitiatedHide");
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "mouseClickedOnPreedit")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "mouseClickedOnPreedit");
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "imInitiatedHide");
     }
+
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
@@ -301,7 +305,7 @@ static void MaliitClientCallServerMethod(MaliitClient *client, const char *metho
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method: %s", method);
-    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method FAILED");
     }
 }
@@ -313,7 +317,7 @@ static void MaliitClientCallContextMethod(MaliitClient *client, const char *meth
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method: %s", method);
-    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method FAILED");
     }
 }
@@ -456,7 +460,7 @@ SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
         return SDL_FALSE;
     }
 
-    if (SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "processKeyEvent",
+    if (SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "processKeyEvent",
                             DBUS_TYPE_UINT32, &keysym, DBUS_TYPE_UINT32, &keycode, DBUS_TYPE_UINT32, &mod_state, DBUS_TYPE_BOOLEAN, &is_release, DBUS_TYPE_UINT32, &event_time, DBUS_TYPE_INVALID,
                             DBUS_TYPE_BOOLEAN, &handled, DBUS_TYPE_INVALID)) {
         if (handled) {
@@ -494,7 +498,7 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
         return;
     }
 
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateInputMethodArea",
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
                             DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
 }
 
