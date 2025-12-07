@@ -196,22 +196,51 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
                                                     "updateWidgetInformation");
     DBusMessageIter args, dict, entry, variant;
     
+    /*
+        focusState                bool
+        surroundingText           string
+        cursorPosition            int
+        anchorPosition            int
+        autocapitalizationEnabled hint
+        hiddenText                hint
+        predictionEnabled         hint
+        maliit-inputmethod-hints  hint
+        enterKeyType              ???
+        hasSelection              bool
+        winId                     uintXX
+        cursorRectangle           rect ( (ii) ???)
+        toolbarId                 Global extension id.
+    */
+
+    maliit_client.dbus->message_iter_init_append(msg, &args);
+    // Append a{sv}
+    maliit_client.dbus->message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);      // a{
+    
     key = "winId";
-    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
-    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);
-    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);
-    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &appname);
-    maliit_client.dbus->message_iter_close_container(&entry, &variant);
-    maliit_client.dbus->message_iter_close_container(&dict, &entry);
-    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "winId"
+    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);   // s
+    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &appname);         // "foo"
+    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
+    maliit_client.dbus->message_iter_close_container(&dict, &entry);                              // END entry
     key = "focusState";
-    Uint32 value = focus ? 1 : 0;
-    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);
-    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);
-    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);
-    maliit_client.dbus->message_iter_close_container(&entry, &variant);
-    maliit_client.dbus->message_iter_close_container(&dict, &entry);
-    maliit_client.dbus->message_iter_close_container(&args, &dict);
+    Uint32 value = maliit_client.focus ? 1 : 0;
+    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "focusState"
+    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
+    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 1/0
+    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
+    maliit_client.dbus->message_iter_close_container(&dict, &entry);                             // END entry
+    key = "toolbarId";
+    value = 0;
+    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "toolbarId"
+    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
+    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 0
+    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
+    maliit_client.dbus->message_iter_close_container(&dict, &entry);                             // END entry
+
+    maliit_client.dbus->message_iter_close_container(&args, &dict);                              // }
 
     // Append boolean
     dbus_bool_t focusChanged = TRUE;
