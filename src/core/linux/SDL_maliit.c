@@ -219,10 +219,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Handling a DBus message");
 
-    if (!msg) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: message is NULL!");
-    }
-
     if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
         DBusMessageIter iter;
@@ -231,7 +227,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         dbus->message_iter_init(msg, &iter);
         if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_STRING) {
             dbus->message_iter_get_basic(&iter, &text);
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: commitString: arg s: %s", text);
         }
 
         if (text && *text) {
@@ -300,12 +295,12 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 static void MaliitClientCallServerMethod(MaliitClient *client, const char *method)
 {
     if (!client->conn) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method without a connection!");
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method without a connection!");
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method: %s", method);
     if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method FAILED");
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method FAILED");
     }
 }
 
@@ -313,11 +308,12 @@ static void MaliitClientCallServerMethod(MaliitClient *client, const char *metho
 static void MaliitClientCallContextMethod(MaliitClient *client, const char *method)
 {
     if (!client->conn) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method without a connection!");
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method: %s", method);
     if(SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method FAILED");
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method FAILED");
     }
 }
 */
@@ -335,16 +331,16 @@ static char* MaliitClientGetAddress(void)
 
     dbus = maliit_client.dbus;
     if (!dbus) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not connect to bus.");
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not connect to bus");
         return NULL;
     }
 
     SDL_DBus_QueryProperty(MALIIT_ADDRESS_SERVICE, MALIIT_ADDRESS_PATH, MALIIT_ADDRESS_INTERFACE,
                            "address", DBUS_TYPE_STRING, &addr);
     if (!addr) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not get Maliit server address!");
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not get Maliit server address!");
     }
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Server address determined from bus.");
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Server address determined from bus");
     return SDL_strdup(addr);
 }
 
@@ -383,7 +379,7 @@ static Uint32 Maliit_ModState(void)
 
 SDL_bool SDL_Maliit_Init(void)
 {
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
+    SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
     maliit_client.dbus = SDL_DBus_GetContext();
 
     maliit_client.cursor_rect.x = -1;
@@ -392,15 +388,16 @@ SDL_bool SDL_Maliit_Init(void)
     maliit_client.cursor_rect.h = 0;
 
     const char* addr = MaliitClientGetAddress();
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: connecting via address %s", addr);
 
     if(!addr) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not get Server address.");
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not get Server address.");
         return SDL_FALSE;
     }
 
     DBusConnection *conn = maliit_client.dbus->connection_open_private(addr, NULL);
     if (!conn) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
         return SDL_FALSE;
     }
 
