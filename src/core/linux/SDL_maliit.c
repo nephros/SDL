@@ -494,8 +494,8 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
         return;
     }
 
-    //SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateInputMethodArea",
-    //                        DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateInputMethodArea",
+                            DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
 }
 
 void SDL_Maliit_PumpEvents(void)
