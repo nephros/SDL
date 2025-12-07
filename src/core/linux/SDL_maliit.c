@@ -294,7 +294,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static void MaliitClientISCallMethod(MaliitClient *client, const char *method)
+static void MaliitClientCallServerMethod(MaliitClient *client, const char *method)
 {
     if (!client->conn) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method without a connection!");
@@ -307,7 +307,7 @@ static void MaliitClientISCallMethod(MaliitClient *client, const char *method)
 }
 
 
-static void MaliitClientICCallMethod(MaliitClient *client, const char *method)
+static void MaliitClientCallContextMethod(MaliitClient *client, const char *method)
 {
     if (!client->conn) {
         return;
@@ -415,7 +415,7 @@ SDL_bool SDL_Maliit_Init(void)
 void SDL_Maliit_Quit(void)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Quit");
-    MaliitClientICCallMethod(&maliit_client, "hideInputMethod");
+    MaliitClientCallContextMethod(&maliit_client, "hideInputMethod");
     if (maliit_client.conn) {
         maliit_client.dbus->connection_close(maliit_client.conn);
         maliit_client.dbus->connection_unref(maliit_client.conn);
@@ -429,20 +429,20 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
     if (focused) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
-        MaliitClientISCallMethod(&maliit_client, "activateContext");
+        MaliitClientCallServerMethod(&maliit_client, "activateContext");
         Maliit_updateWidgetInfo(focused);
-        //MaliitClientISCallMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
-        MaliitClientISCallMethod(&maliit_client, "showInputMethod");
+        //MaliitClientCallServerMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
+        MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
-        MaliitClientISCallMethod(&maliit_client, "hideInputMethod");
+        MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
     }
 }
 
 void SDL_Maliit_Reset(void)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Reset");
-    MaliitClientISCallMethod(&maliit_client, "reset");
+    MaliitClientCallServerMethod(&maliit_client, "reset");
 }
 
 SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
