@@ -309,10 +309,14 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
+    if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "imInitiatedHide");
+        SDL_SendEditingText("", 0, 0);
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+
     if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "keyEvent")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "keyEvent");
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "imInitiatedHide");
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "mouseClickedOnPreedit")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "mouseClickedOnPreedit");
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
