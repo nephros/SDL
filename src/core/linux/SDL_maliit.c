@@ -164,7 +164,6 @@ static void Maliit_updateOrientation()
     if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
         orientation = 0;
     }
-    // note that this goes to Server, not context.
     SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
                             DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID);
 }
@@ -188,7 +187,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 
     char *appname = GetAppName();
 
-    // note that this goes to Server, not context.
+    // FIXME: is the correct signature <arg type="a{sv}" name="stateInformation"/>??
     SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation",
                             DBUS_TYPE_STRING, &appname,
                             DBUS_TYPE_BOOLEAN, &focus,
