@@ -418,7 +418,7 @@ SDL_bool SDL_Maliit_Init(void)
 void SDL_Maliit_Quit(void)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Quit");
-    MaliitClientCallContextMethod(&maliit_client, "hideInputMethod");
+    MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
     if (maliit_client.conn) {
         maliit_client.dbus->connection_close(maliit_client.conn);
         maliit_client.dbus->connection_unref(maliit_client.conn);
