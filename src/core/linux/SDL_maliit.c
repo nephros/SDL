@@ -188,7 +188,10 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     char *appname = GetAppName();
     const char *key;
 
-    DBusMessage *msg = maliit_client.dbus->message_new_method_call(NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation");
+    DBusMessage *msg = maliit_client.dbus->message_new_method_call(NULL,
+                                                    MALIIT_IMSERVER_PATH,
+                                                    MALIIT_IMSERVER_INTERFACE,
+                                                    "updateWidgetInformation");
     DBusMessageIter args, dict, entry, variant;
     
     key = "winId";
