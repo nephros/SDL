@@ -171,8 +171,6 @@ static void Maliit_updateOrientation()
 
 static void Maliit_updateWidgetInfo(SDL_bool focus)
 {
-    SDL_DBusContext *dbus;
-    DBusMessage *msg;
     SDL_Window *focused_win = NULL;
     SDL_SysWMinfo info;
 
@@ -190,12 +188,11 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 
     char *appname = GetAppName();
 
-    dbus = maliit_client.dbus;
-    msg = dbus->message_new_method_call(NULL, MALIIT_IMC_PATH, MALIIT_IMC_INTERFACE, "updateWidgetInformation");
-    //dbus->message_append_args(msg, DBUS_TYPE_STRING, "SDL_App");
-    dbus->message_append_args(msg, DBUS_TYPE_STRING, appname);
-    dbus->message_append_args(msg, DBUS_TYPE_BOOLEAN, focus);
-    dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+    // note that this goes to Server, not context.
+    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMS_PATH, MALIIT_IMS_INTERFACE, "updateWidgetInformation",
+                            DBUS_TYPE_STRING, &appname,
+                            DBUS_TYPE_BOOLEAN, &focus,
+                            DBUS_TYPE_INVALID);
 }
 
 
