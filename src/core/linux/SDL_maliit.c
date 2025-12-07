@@ -182,8 +182,6 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
         return;
     }
 
-    Maliit_updateOrientation(focused_win);
-
     SDL_VERSION(&info.version);
     if (!SDL_GetWindowWMInfo(focused_win, &info)) {
         return;
@@ -511,6 +509,11 @@ void SDL_Maliit_Quit(void)
 void SDL_Maliit_SetFocus(SDL_bool focused)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
+    SDL_Window *focused_win = NULL;
+    focused_win = SDL_GetKeyboardFocus();
+
+    Maliit_updateOrientation();
+
     if (focused) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
         MaliitClientCallServerMethod(&maliit_client, "activateContext");
