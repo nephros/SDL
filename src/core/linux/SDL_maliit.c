@@ -278,6 +278,10 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
+    const char* errname;
+    if (dbus->message_is_error(msg, errname)) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus error: %s", errname);
+    }
     /*
      * ***** Context Messages *****
      */
@@ -614,7 +618,8 @@ SDL_bool SDL_Maliit_Init(void)
     */
     maliit_client.dbus->bus_add_match(conn,
                         //"type='signal', interface='com.meego.inputmethod.inputcontext1', path='/com/meego/inputmethod/inputcontext'",
-                        "type='signal', interface='com.meego.inputmethod.inputcontext1'",
+                        //"type='signal', interface='com.meego.inputmethod.inputcontext1'",
+                        "interface='com.meego.inputmethod.inputcontext1'",
                         NULL);
     maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
 

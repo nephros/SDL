@@ -65,6 +65,7 @@ static int LoadDBUSSyms(void)
     SDL_DBUS_SYM(connection_flush);
     SDL_DBUS_SYM(connection_read_write);
     SDL_DBUS_SYM(connection_dispatch);
+    SDL_DBUS_SYM(message_is_error);
     SDL_DBUS_SYM(message_is_signal);
     SDL_DBUS_SYM(message_new_method_call);
     SDL_DBUS_SYM(message_append_args);

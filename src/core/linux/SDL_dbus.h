@@ -55,6 +55,7 @@ typedef struct SDL_DBusContext
     void (*connection_flush)(DBusConnection *);
     dbus_bool_t (*connection_read_write)(DBusConnection *, int);
     DBusDispatchStatus (*connection_dispatch)(DBusConnection *);
+    dbus_bool_t (*message_is_error)(DBusMessage *, const char *);
     dbus_bool_t (*message_is_signal)(DBusMessage *, const char *, const char *);
     DBusMessage *(*message_new_method_call)(const char *, const char *, const char *, const char *);
     dbus_bool_t (*message_append_args)(DBusMessage *, int, ...);
