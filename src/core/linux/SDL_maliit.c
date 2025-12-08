@@ -283,6 +283,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "activationLostEvent");
     /*
      * ***** Context Messages *****
      */
@@ -490,8 +491,12 @@ imInitiatedHide []
                 case DBUS_TYPE_STRUCT:
                     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "(STRUCT)");
                     break;
+                default:
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "OTHER");
             }
             }
+        } else {
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event has no arguments");
         }
     }
 
