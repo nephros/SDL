@@ -158,8 +158,10 @@ static void Maliit_updateOrientation()
     if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
         orientation = 90;
     }
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
-                            DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID);
+    if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
+                            DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID)) {
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+    }
 }
 
 static void Maliit_updateWidgetInfo(SDL_bool focus)
@@ -672,6 +674,7 @@ SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
     Uint32 event_time = 0;
 
     if (!maliit_client.conn) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: No connection!");
         return SDL_FALSE;
     }
 
@@ -710,11 +713,14 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
     SDL_GetWindowPosition(focused_win, &x, &y);
 
     if (!maliit_client.conn) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: No connection!");
         return;
     }
 
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
-                            DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID);
+    if(!SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
+                            DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID)) {
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+    };
 }
 
 void SDL_Maliit_PumpEvents(void)
