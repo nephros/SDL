@@ -278,6 +278,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message of type: %d", dbus->message_get_type(msg) );
     const char* errname;
     if (dbus->message_is_error(msg, errname)) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus error: %s", errname);

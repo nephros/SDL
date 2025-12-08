@@ -66,6 +66,7 @@ typedef struct SDL_DBusContext
     dbus_bool_t (*message_iter_close_container)(DBusMessageIter *, DBusMessageIter *);
     dbus_bool_t (*message_get_args)(DBusMessage *, DBusError *, int, ...);
     dbus_bool_t (*message_get_args_valist)(DBusMessage *, DBusError *, int, va_list);
+    int (*message_get_type)(DBusMessage *);
     dbus_bool_t (*message_iter_init)(DBusMessage *, DBusMessageIter *);
     dbus_bool_t (*message_iter_next)(DBusMessageIter *);
     void (*message_iter_get_basic)(DBusMessageIter *, void *);
