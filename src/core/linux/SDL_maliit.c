@@ -53,10 +53,6 @@ typedef struct _MaliitClient
 
     char* id;
 
-    SDL_bool active;
-    SDL_bool hidden;
-    SDL_bool focus;
-
     SDL_Rect cursor_rect;
 } MaliitClient;
 
@@ -225,7 +221,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
     maliit_client.dbus->message_iter_close_container(&dict, &entry);                              // END entry
     key = "focusState";
-    Uint32 value = maliit_client.focus ? 1 : 0;
+    Uint32 value = focus ? 1 : 0;
     maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
     maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "focusState"
     maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
@@ -289,13 +285,10 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
      */
     if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "activationLostEvent")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "activationLostEvent");
-        maliit_client.active = SDL_FALSE;
-        maliit_client.hidden = SDL_TRUE;
         return DBUS_HANDLER_RESULT_HANDLED;
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "imInitiatedHide");
         SDL_SendEditingText("", 0, 0);
-        maliit_client.hidden = SDL_TRUE;
         return DBUS_HANDLER_RESULT_HANDLED;
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
         //commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
@@ -650,8 +643,6 @@ void SDL_Maliit_Quit(void)
 void SDL_Maliit_SetFocus(SDL_bool focused)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
-    SDL_Window *focused_win = NULL;
-    focused_win = SDL_GetKeyboardFocus();
 
     Maliit_updateOrientation();
 
@@ -662,12 +653,9 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
         //MaliitClientCallServerMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: showing");
         MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
-        maliit_client.active = SDL_TRUE;
-        maliit_client.hidden = SDL_FALSE;
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
         MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
-        maliit_client.hidden = SDL_TRUE;
     }
 }
 
