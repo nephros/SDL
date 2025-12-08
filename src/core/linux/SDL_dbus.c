@@ -77,6 +77,13 @@ static int LoadDBUSSyms(void)
     SDL_DBUS_SYM(message_get_args);
     SDL_DBUS_SYM(message_get_args_valist);
     SDL_DBUS_SYM(message_get_type);
+    SDL_DBUS_SYM(message_get_path);
+    SDL_DBUS_SYM(message_get_interface);
+    SDL_DBUS_SYM(message_get_member);
+    SDL_DBUS_SYM(message_get_error_name);
+    SDL_DBUS_SYM(message_get_destination);
+    SDL_DBUS_SYM(message_get_sender);
+    SDL_DBUS_SYM(message_get_signature);
     SDL_DBUS_SYM(message_iter_init);
     SDL_DBUS_SYM(message_iter_next);
     SDL_DBUS_SYM(message_iter_get_basic);

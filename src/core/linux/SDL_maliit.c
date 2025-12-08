@@ -181,8 +181,14 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: no window info");
         return;
     }
+    // FIXME: Which app name/window id to use?
+    // maybe:
+    //const char* appname = info.info.wl.shell_surface.wl;
+    // or:
+    // const char* appname = SDL_GetWindowID(focused_win);
+    // meanwhile:
+    const char *appname = GetAppName();
 
-    char *appname = GetAppName();
     const char *key;
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: using app name %s", appname);
@@ -211,6 +217,8 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     maliit_client.dbus->message_iter_init_append(msg, &args);
     // Append a{sv}
     maliit_client.dbus->message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);      // a{
+
+    // There is SDL_DBus_AppendDictWithKeyValue(args, key, value); but we can not use it.
 
     key = "winId";
     maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
@@ -278,11 +286,15 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message of type: %d", dbus->message_get_type(msg) );
-    const char* errname;
-    if (dbus->message_is_error(msg, errname)) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus error: %s", errname);
-    }
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message of type: %d\n0=inv, 1=call, 2=ret, 3=err, 4=sig),", dbus->message_get_type(msg) );
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: path: %s", dbus->message_get_path(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: iface: %s", dbus->message_get_interface(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: dst: %s", dbus->message_get_destination(msg));
+//    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: sig: %s", dbus->message_get_signature(msg));
+    //const char* errname = "unknown";
+    //if (dbus->message_is_error(msg, errname)) {
+    //    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus error: %s", errname);
+    //}
     /*
      * ***** Context Messages *****
      */
@@ -610,7 +622,6 @@ SDL_bool SDL_Maliit_Init(void)
     if (maliit_client.dbus->connection_get_is_connected(conn)) {
         SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: connection established.");
     }
-
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     /*
     maliit_client.dbus->bus_add_match(conn,
@@ -624,7 +635,12 @@ SDL_bool SDL_Maliit_Init(void)
                         NULL);
     maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
 
-    maliit_client.dbus->connection_ref(conn);
+    if (!maliit_client.dbus->bus_register(conn, NULL)) {
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not register connection");
+        return SDL_FALSE;
+    }
+
+    //maliit_client.dbus->connection_ref(conn);
 
     maliit_client.conn = conn;
 
