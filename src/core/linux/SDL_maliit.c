@@ -615,7 +615,8 @@ SDL_bool SDL_Maliit_Init(void)
                         NULL);
     */
     maliit_client.dbus->bus_add_match(conn,
-                        "type='signal', interface='com.meego.inputmethod.inputcontext1', path='/com/meego/inputmethod/inputcontext'",
+                        //"type='signal', interface='com.meego.inputmethod.inputcontext1', path='/com/meego/inputmethod/inputcontext'",
+                        "type='signal', interface='com.meego.inputmethod.inputcontext1'",
                         NULL);
     maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
 
