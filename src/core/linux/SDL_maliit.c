@@ -196,7 +196,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
                                                     MALIIT_IMSERVER_INTERFACE,
                                                     "updateWidgetInformation");
     DBusMessageIter args, dict, entry, variant;
-    
+
     /*
         focusState                bool
         surroundingText           string
@@ -216,7 +216,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     maliit_client.dbus->message_iter_init_append(msg, &args);
     // Append a{sv}
     maliit_client.dbus->message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);      // a{
-    
+
     key = "winId";
     maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
     maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "winId"
@@ -297,6 +297,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         maliit_client.hidden = SDL_TRUE;
         return DBUS_HANDLER_RESULT_HANDLED;
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
+        //commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
         DBusMessageIter iter;
         const char *text = NULL;
@@ -352,15 +353,63 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 
         SDL_Maliit_UpdateTextRect(NULL);
         return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "keyEvent")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "keyEvent");
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "updateInputMethodArea");
+         // updateInputMethodArea [dbus.Int32(372), dbus.Int32(0), dbus.Int32(348), dbus.Int32(1600)]
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updateInoutMethodArea");
+        DBusMessageIter iter;
+        SDL_Rect input_rect;
+        dbus->message_iter_init(msg, &iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &input_rect.x);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &input_rect.y);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &input_rect.h);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &input_rect.w);
+        }
+
+        SDL_Maliit_UpdateTextRect(&input_rect);
+        return DBUS_HANDLER_RESULT_HANDLED;
+/*
+setLanguage [dbus.String('')]
+setGlobalCorrectionEnabled [dbus.Boolean(False)]
+setRedirectKeys [dbus.Boolean(False)]
+setDetectableAutoRepeat [dbus.Boolean(False)]
+updateInputMethodArea [dbus.Int32(372), dbus.Int32(0), dbus.Int32(348), dbus.Int32(1600)]
+updatePreedit [dbus.String('asdffg'), dbus.Array([dbus.Struct((dbus.Int32(0), dbus.Int32(6), dbus.Int32(0)), signature=None)], signature=dbus.Signature('(iii)')), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
+commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
+keyEvent [dbus.Int32(6), dbus.Int32(16777220), dbus.Int32(0), dbus.String('\r'), dbus.Boolean(False), dbus.Int32(1), dbus.Byte(0)]
+updateInputMethodArea [dbus.Int32(0), dbus.Int32(0), dbus.Int32(0), dbus.Int32(0)]
+imInitiatedHide []
+*/
+
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setRedirectKeys")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "RedirectKeys");
+        return DBUS_HANDLER_RESULT_HANDLED;
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setDetectableAutoRepeat")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setDetectableAutoRepeat");
+        return DBUS_HANDLER_RESULT_HANDLED;
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setGlobalCorrectionEnabled")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setGlobalCorrectionEnabled");
+        return DBUS_HANDLER_RESULT_HANDLED;
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setLanguage")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setLanguage");
+        return DBUS_HANDLER_RESULT_HANDLED;
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "selection")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "selection");
+    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "pluginSettingsLoaded")) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "pluginSettingsLoaded");
     /* 
-     * ***** Context Messages *****
+     * ***** Server Messages *****
      */
+    /*
     } else if (dbus->message_is_signal(msg, MALIIT_IMSERVER_INTERFACE, "mouseClickedOnPreedit")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "mouseClickedOnPreedit");
     } else if (dbus->message_is_signal(msg, MALIIT_IMSERVER_INTERFACE, "imInitiatedHide")) {
@@ -372,6 +421,7 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
             dbus->message_iter_get_basic(&iter, &action);
             dbus->message_iter_get_basic(&iter, &sequence);
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s: %s, %s", "invokeAction", action, sequence);
+         */
      } else {
         DBusMessageIter iter;
 
