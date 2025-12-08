@@ -620,6 +620,8 @@ SDL_bool SDL_Maliit_Init(void)
                         NULL);
     maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
 
+    maliit_client.dbus->connection_ref(conn);
+
     maliit_client.conn = conn;
 
     SDL_Maliit_SetFocus(SDL_GetKeyboardFocus() != NULL);
