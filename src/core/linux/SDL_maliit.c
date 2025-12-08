@@ -540,6 +540,9 @@ SDL_bool SDL_Maliit_Init(void)
 
     maliit_client.conn = conn;
 
+    SDL_Maliit_SetFocus(SDL_GetKeyboardFocus() != NULL);
+    SDL_Maliit_UpdateTextRect(NULL);
+
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Init done");
     return SDL_TRUE;
 }
