@@ -635,10 +635,10 @@ SDL_bool SDL_Maliit_Init(void)
                         NULL);
     maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
 
-    if (!maliit_client.dbus->bus_register(conn, NULL)) {
-        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not register connection");
-        return SDL_FALSE;
-    }
+//    if (!maliit_client.dbus->bus_register(conn, NULL)) {
+//        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not register connection");
+//        return SDL_FALSE;
+//    }
 
     //maliit_client.dbus->connection_ref(conn);
 
