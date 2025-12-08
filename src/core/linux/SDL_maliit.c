@@ -177,17 +177,20 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 
     focused_win = SDL_GetKeyboardFocus();
     if (!focused_win) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: no window focus");
         return;
     }
 
     SDL_VERSION(&info.version);
     if (!SDL_GetWindowWMInfo(focused_win, &info)) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: no window info");
         return;
     }
 
     char *appname = GetAppName();
     const char *key;
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: using app name %s", appname);
     DBusMessage *msg = maliit_client.dbus->message_new_method_call(NULL,
                                                     MALIIT_IMSERVER_PATH,
                                                     MALIIT_IMSERVER_INTERFACE,
