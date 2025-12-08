@@ -428,6 +428,7 @@ imInitiatedHide []
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Event details:\n");
 
         if (dbus->message_iter_init(msg, &iter)) {
+        while (dbus->message_iter_next(&iter)) {
             switch (dbus->message_iter_get_arg_type(&iter)) {
                 case DBUS_TYPE_STRING: {
                     char* value;
@@ -458,6 +459,7 @@ imInitiatedHide []
                 case DBUS_TYPE_STRUCT:
                     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "(STRUCT)");
                     break;
+            }
             }
         }
     }
