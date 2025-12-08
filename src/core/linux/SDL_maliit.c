@@ -29,9 +29,6 @@
 #include "../../events/SDL_keyboard_c.h"
 #include "SDL_dbus.h"
 #include "SDL_syswm.h"
-// #ifdef SDL_VIDEO_DRIVER_X11
-// #  include "../../video/x11/SDL_x11video.h"
-// #endif
 #include "SDL_hints.h"
 
 #define MALIIT_ADDRESS_SERVICE "org.maliit.server"
