@@ -160,10 +160,10 @@ static void Maliit_updateOrientation()
         orientation = 180;
     }
     if (o == SDL_ORIENTATION_LANDSCAPE) {
-        orientation = 90;
+        orientation = 270;
     }
     if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
-        orientation = 270;
+        orientation = 90;
     }
     SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
                             DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID);
