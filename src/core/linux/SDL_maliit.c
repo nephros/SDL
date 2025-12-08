@@ -521,6 +521,9 @@ SDL_bool SDL_Maliit_Init(void)
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
         return SDL_FALSE;
     }
+    if (maliit_client.dbus->connection_get_is_connected(conn)) {
+        SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: connection established.");
+    }
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     maliit_client.dbus->bus_add_match(conn,
