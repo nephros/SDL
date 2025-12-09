@@ -437,26 +437,27 @@ imInitiatedHide []
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setLanguage");
         return DBUS_HANDLER_RESULT_HANDLED;
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "selection")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "selection");
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: event not yet handled: %s", "selection");
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "pluginSettingsLoaded")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: event not yet handled: %s", "pluginSettingsLoaded");
      } else {
         DBusMessageIter iter;
 
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Event details:\n");
-
-        if (dbus->message_iter_init(msg, &iter)) {
+        if (!dbus->message_iter_init(msg, &iter)) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message has no arguments");
+        } else {
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message details:\n");
             switch (dbus->message_iter_get_arg_type(&iter)) {
                 case DBUS_TYPE_STRING: {
                     char* value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value);
                     break;
                 }
                 case DBUS_TYPE_BOOLEAN: {
                     SDL_bool value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", value ? "[TRUE]" : "[FALSE]");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value ? "[TRUE]" : "[FALSE]");
                     break;
                 }
                 case DBUS_TYPE_INT16:
@@ -467,14 +468,14 @@ imInitiatedHide []
                 case DBUS_TYPE_UINT64: {
                     int value = 0;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %d", (int)value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %d", (int)value);
                     break;
                 }
                 case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "{ARRAY}");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "{ARRAY}");
                     break;
                 case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "(STRUCT)");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "(STRUCT)");
                     break;
             }
         while (dbus->message_iter_next(&iter)) {
@@ -482,13 +483,13 @@ imInitiatedHide []
                 case DBUS_TYPE_STRING: {
                     char* value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value);
                     break;
                 }
                 case DBUS_TYPE_BOOLEAN: {
                     SDL_bool value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", value ? "[TRUE]" : "[FALSE]");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value ? "[TRUE]" : "[FALSE]");
                     break;
                 }
                 case DBUS_TYPE_INT16:
@@ -499,21 +500,19 @@ imInitiatedHide []
                 case DBUS_TYPE_UINT64: {
                     int value = 0;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %d", (int)value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %d", (int)value);
                     break;
                 }
                 case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "{ARRAY}");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "{ARRAY}");
                     break;
                 case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "(STRUCT)");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "(STRUCT)");
                     break;
                 default:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event argument: %s", "OTHER");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "OTHER");
             }
             }
-        } else {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event has no arguments");
         }
     }
 
