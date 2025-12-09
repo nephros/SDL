@@ -48,11 +48,8 @@
 
 typedef struct _MaliitClient
 {
-    SDL_DBusContext *dbus;
     DBusConnection *conn;
-
     char* id;
-
     SDL_Rect cursor_rect;
 } MaliitClient;
 
@@ -205,7 +202,10 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     const char *key;
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: using app name %s", appname);
-    DBusMessage *msg = maliit_client.dbus->message_new_method_call(NULL,
+
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
+
+    DBusMessage *msg = dbus->message_new_method_call(NULL,
                                                     MALIIT_IMSERVER_PATH,
                                                     MALIIT_IMSERVER_INTERFACE,
                                                     "updateWidgetInformation");
@@ -227,45 +227,45 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
         toolbarId                 Global extension id.
     */
 
-    maliit_client.dbus->message_iter_init_append(msg, &args);
+    dbus->message_iter_init_append(msg, &args);
     // Append a{sv}
-    maliit_client.dbus->message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);      // a{
+    dbus->message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);      // a{
 
     // There is SDL_DBus_AppendDictWithKeyValue(args, key, value); but we can not use it.
 
     key = "winId";
-    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
-    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "winId"
-    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);   // s
-    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_STRING, &appname);         // "foo"
-    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
-    maliit_client.dbus->message_iter_close_container(&dict, &entry);                              // END entry
+    dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "winId"
+    dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);   // s
+    dbus->message_iter_append_basic(&variant, DBUS_TYPE_STRING, &appname);         // "foo"
+    dbus->message_iter_close_container(&entry, &variant);                          // ,
+    dbus->message_iter_close_container(&dict, &entry);                              // END entry
     key = "focusState";
     Uint32 value = focus ? 1 : 0;
-    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
-    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "focusState"
-    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
-    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 1/0
-    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
-    maliit_client.dbus->message_iter_close_container(&dict, &entry);                             // END entry
+    dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "focusState"
+    dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
+    dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 1/0
+    dbus->message_iter_close_container(&entry, &variant);                          // ,
+    dbus->message_iter_close_container(&dict, &entry);                             // END entry
     key = "toolbarId";
     value = 0;
-    maliit_client.dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
-    maliit_client.dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "toolbarId"
-    maliit_client.dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
-    maliit_client.dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 0
-    maliit_client.dbus->message_iter_close_container(&entry, &variant);                          // ,
-    maliit_client.dbus->message_iter_close_container(&dict, &entry);                             // END entry
+    dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
+    dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "toolbarId"
+    dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "u", &variant);   // u
+    dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 0
+    dbus->message_iter_close_container(&entry, &variant);                          // ,
+    dbus->message_iter_close_container(&dict, &entry);                             // END entry
 
-    maliit_client.dbus->message_iter_close_container(&args, &dict);                              // }
+    dbus->message_iter_close_container(&args, &dict);                              // }
 
     // Append boolean
     dbus_bool_t focusChanged = TRUE;
-    maliit_client.dbus->message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &focusChanged);
+    dbus->message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &focusChanged);
 
-    maliit_client.dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
-    maliit_client.dbus->connection_flush(maliit_client.conn);
-    maliit_client.dbus->message_unref(msg);
+    dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
+    dbus->connection_flush(maliit_client.conn);
+    dbus->message_unref(msg);
 
 /*
     // FIXME: is the correct signature <arg type="a{sv}" name="stateInformation"/>??
@@ -639,6 +639,9 @@ static Uint32 Maliit_ModState(void)
 
 SDL_bool SDL_Maliit_Init(void)
 {
+    SDL_DBusContext *dbus;
+    char* addr;
+
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
 
     maliit_client.cursor_rect.x = -1;
@@ -646,7 +649,7 @@ SDL_bool SDL_Maliit_Init(void)
     maliit_client.cursor_rect.w = 0;
     maliit_client.cursor_rect.h = 0;
 
-    const char* addr = MaliitClientGetAddress();
+    addr = MaliitClientGetAddress();
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: connecting via address %s", addr);
 
     if(!addr) {
@@ -654,48 +657,55 @@ SDL_bool SDL_Maliit_Init(void)
         return SDL_FALSE;
     }
 
-    maliit_client.dbus = SDL_DBus_GetContext();
-    if (!maliit_client.dbus) {
+    dbus = SDL_DBus_GetContext();
+    if (!dbus) {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not connect to DBus");
         return SDL_FALSE;
     }
 
-    DBusConnection *conn = maliit_client.dbus->connection_open_private(addr, NULL);
+    DBusConnection *conn = dbus->connection_open_private(addr, NULL);
     if (!conn) {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
         return SDL_FALSE;
     }
+    SDL_free(addr);
 
-    if (maliit_client.dbus->connection_get_is_connected(conn)) {
+    if (dbus->connection_get_is_connected(conn)) {
         SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: connection established.");
     } else {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: connection could not be established.");
         return SDL_FALSE;
     }
 
-    maliit_client.dbus->connection_flush(conn);
+    dbus->connection_flush(conn);
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     /*
-    maliit_client.dbus->bus_add_match(conn,
+    dbus->bus_add_match(conn,
                         "type='signal', interface='com.meego.inputmethod.uiserver1'",
                         NULL);
     */
-    maliit_client.dbus->bus_add_match(conn,
+    dbus->bus_add_match(conn,
                         //"type='signal', interface='com.meego.inputmethod.inputcontext1', path='/com/meego/inputmethod/inputcontext'",
                         "type='signal', interface='com.meego.inputmethod.inputcontext1'",
                         //"interface='com.meego.inputmethod.inputcontext1'",
                         NULL);
-    maliit_client.dbus->connection_add_filter(conn, &DBus_MessageFilter, maliit_client.dbus, NULL);
+    // .. match rules on method calls should not usually give an interface.
+    // https://dbus.freedesktop.org/doc/api/html/group__DBusBus.html#ga4eb6401ba014da3dbe3dc4e2a8e5b3ef
+    //dbus->bus_add_match(conn,
+    //                    "type='method'",
+    //                    NULL);
 
-//    if (!maliit_client.dbus->bus_register(conn, NULL)) {
+    dbus->connection_add_filter(conn, &DBus_MessageFilter, dbus, NULL);
+
+//    if (!dbus->bus_register(conn, NULL)) {
 //        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not register connection");
 //        return SDL_FALSE;
 //    }
 
-    //maliit_client.dbus->connection_ref(conn);
+    //dbus->connection_ref(conn);
 
-    maliit_client.dbus->connection_flush(conn);
+    dbus->connection_flush(conn);
 
     maliit_client.conn = conn;
 
@@ -708,13 +718,15 @@ SDL_bool SDL_Maliit_Init(void)
 
 void SDL_Maliit_Quit(void)
 {
+    SDL_DBusContext *dbus;
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Quit");
+    dbus = SDL_DBus_GetContext();
     MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
     if (maliit_client.conn) {
-        maliit_client.dbus->connection_close(maliit_client.conn);
-        maliit_client.dbus->connection_unref(maliit_client.conn);
+        dbus->connection_close(maliit_client.conn);
+        dbus->connection_unref(maliit_client.conn);
     }
-    maliit_client.dbus = NULL;
+    dbus = NULL;
     maliit_client.conn = NULL;
 }
 
@@ -802,7 +814,7 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
 
 void SDL_Maliit_PumpEvents(void)
 {
-    SDL_DBusContext *dbus = maliit_client.dbus;
+    SDL_DBusContext *dbus = dbus;
     DBusConnection *conn  = maliit_client.conn;
 
     dbus->connection_read_write(conn, 0);
