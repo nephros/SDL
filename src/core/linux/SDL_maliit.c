@@ -76,6 +76,16 @@ static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
     Sint32 p_start_pos = -1;
     Sint32 p_end_pos = -1;
 
+// FIXME: Actually handle the whole message for maliit!
+    dbus->message_iter_init(msg, &iter);
+    if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_STRING) {
+        dbus->message_iter_get_basic(&sub, &subtext);
+        if (subtext && *subtext) {
+            text_bytes += SDL_strlen(subtext);
+            return text_bytes;
+        }
+    }
+
     dbus->message_iter_init(msg, &iter);
     /* Message type is a(si)i, we only need string part */
     if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_ARRAY) {
@@ -290,7 +300,8 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     // FIXME: should we use the filter for those?
     //SDL_bool for_us = (dbus->message_get_path(msg) == MALIIT_IMCONTEXT_PATH)
     //              && (dbus->message_get_interface(msg) == MALIIT_IMCONTEXT_INTERFACE)
-    SDL_bool for_us = strcmp(dbus->message_get_interface(msg), MALIIT_IMCONTEXT_INTERFACE)
+    const char* iface = dbus->message_get_interface(msg);
+    SDL_bool for_us = (iface) && strcmp(iface, MALIIT_IMCONTEXT_INTERFACE)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_INVALID)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_ERROR)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_METHOD_RETURN) ;
@@ -317,8 +328,8 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         return DBUS_HANDLER_RESULT_HANDLED;
     //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
     } else if (
-        (dbus->message_get_member(msg) == "commitString")
-        && (dbus->message_get_signature(msg) == "siii")) {
+        strcmp(dbus->message_get_member(msg), "commitString") == 0
+        && strcmp(dbus->message_get_signature(msg),"siii") == 0) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
 
         // siii
@@ -344,7 +355,10 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         }
 
         return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updatePreedit")) {
+    //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updatePreedit")) {
+    } else if (
+        (strcmp(dbus->message_get_member(msg), "updatePreedit") == 0)
+        && (strcmp(dbus->message_get_signature(msg), "sa(iii)iii") == 0) ) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updatePreedit");
         char *text = NULL;
         Sint32 start_pos, end_pos;
