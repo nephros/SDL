@@ -176,9 +176,13 @@ static void Maliit_updateOrientation()
 
 static void Maliit_updateWidgetInfo(SDL_bool focus)
 {
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateWidgetInfo, focus: %s", focus ? "true" : "false");
     SDL_Window *focused_win = NULL;
     SDL_SysWMinfo info;
+    char *appname;
+    char *key;
+
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateWidgetInfo, focus: %s", focus ? "true" : "false");
+
 
     focused_win = SDL_GetKeyboardFocus();
     if (!focused_win) {
@@ -197,9 +201,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     // or:
     // const char* appname = SDL_GetWindowID(focused_win);
     // meanwhile:
-    const char *appname = GetAppName();
-
-    const char *key;
+    appname = GetAppName();
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: using app name %s", appname);
 
@@ -267,6 +269,8 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     dbus->connection_flush(maliit_client.conn);
     dbus->message_unref(msg);
 
+    SDL_free(key);
+    SDL_free(appname);
 /*
     // FIXME: is the correct signature <arg type="a{sv}" name="stateInformation"/>??
     SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation",
