@@ -57,6 +57,8 @@ static MaliitClient maliit_client;
 
 static char *GetAppName(void);
 
+static SDL_bool Maliit_CheckConnection(void);
+
 static size_t Maliit_GetPreeditString(SDL_DBusContext *dbus,
                        DBusMessage *msg,
                        char **ret,
@@ -168,9 +170,11 @@ static void Maliit_updateOrientation()
     if (o == SDL_ORIENTATION_LANDSCAPE_FLIPPED) {
         orientation = 90;
     }
-    if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
-                            DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID)) {
-        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+    if (Maliit_CheckConnection()) {
+        if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
+                                DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID)) {
+            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+        }
     }
 }
 
@@ -555,7 +559,7 @@ imInitiatedHide []
 
 static void MaliitClientCallServerMethod(MaliitClient *client, const char *method)
 {
-    if (!client->conn) {
+    if (!Maliit_CheckConnection()) {
         SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method without a connection!");
         return;
     }
@@ -631,6 +635,22 @@ static Uint32 Maliit_ModState(void)
 
     return maliit_mods;
 }
+
+static SDL_bool Maliit_CheckConnection(void)
+{
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
+
+    if (!dbus) {
+        return SDL_FALSE;
+    }
+
+    if (maliit_client.conn && dbus->connection_get_is_connected(maliit_client.conn)) {
+        return SDL_TRUE;
+    }
+
+    return SDL_FALSE;
+}
+
 
 SDL_bool SDL_Maliit_Init(void)
 {
@@ -718,18 +738,20 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: SetFocus");
 
-    Maliit_updateOrientation();
+    if (Maliit_CheckConnection()) {
+        Maliit_updateOrientation();
 
-    if (focused) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
-        MaliitClientCallServerMethod(&maliit_client, "activateContext");
-        Maliit_updateWidgetInfo(focused);
-        //MaliitClientCallServerMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: showing");
-        MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
-    } else {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
-        MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
+        if (focused) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
+            MaliitClientCallServerMethod(&maliit_client, "activateContext");
+            Maliit_updateWidgetInfo(focused);
+            //MaliitClientCallServerMethod(&maliit_client, "appOrientationChanged"); // orientation, i 270
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: showing");
+            MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
+        } else {
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: de-activating");
+            MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
+        }
     }
 }
 
@@ -798,15 +820,17 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
 
 void SDL_Maliit_PumpEvents(void)
 {
-    SDL_DBusContext *dbus = dbus;
-    DBusConnection *conn  = maliit_client.conn;
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
 
-    dbus->connection_read_write(conn, 0);
+    if (Maliit_CheckConnection()) {
+        dbus->connection_read_write(maliit_client.conn, 0);
 
-    while (dbus->connection_dispatch(conn) == DBUS_DISPATCH_DATA_REMAINS) {
-        /* Do nothing, actual work happens in DBus_MessageFilter */
+        while (dbus->connection_dispatch(maliit_client.conn) == DBUS_DISPATCH_DATA_REMAINS) {
+            /* Do nothing, actual work happens in IBus_MessageHandler */
+        }
     }
 }
+
 
 static char *GetAppName(void)
 {
