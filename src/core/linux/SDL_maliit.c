@@ -295,7 +295,9 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
-    const char* iface = dbus->message_get_interface(msg);
+    const char* iface  = dbus->message_get_interface(msg);
+    const char* member = dbus->message_get_member(msg);
+    const char* sig    = dbus->message_get_signature(msg);
     SDL_bool for_us = (iface) && strcmp(iface, MALIIT_IMCONTEXT_INTERFACE)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_INVALID)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_ERROR)
@@ -322,9 +324,9 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         SDL_SendEditingText("", 0, 0);
         return DBUS_HANDLER_RESULT_HANDLED;
     //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
-    } else if (
-        strcmp(dbus->message_get_member(msg), "commitString") == 0
-        && strcmp(dbus->message_get_signature(msg),"siii") == 0) {
+    } else if ( (member) && (sig)
+        && strcmp(member, "commitString") == 0
+        && strcmp(sig, "siii") == 0) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
 
         // siii
@@ -351,9 +353,9 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 
         return DBUS_HANDLER_RESULT_HANDLED;
     //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updatePreedit")) {
-    } else if (
-        (strcmp(dbus->message_get_member(msg), "updatePreedit") == 0)
-        && (strcmp(dbus->message_get_signature(msg), "sa(iii)iii") == 0) ) {
+    } else if ( (member) && (sig)
+        && strcmp(member, "updatePreedit") == 0
+        && strcmp(sig, "sa(iii)iii") == 0 ) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updatePreedit");
         char *text = NULL;
         Sint32 start_pos, end_pos;
