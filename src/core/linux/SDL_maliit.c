@@ -672,6 +672,9 @@ SDL_bool SDL_Maliit_Init(void)
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: connection could not be established.");
         return SDL_FALSE;
     }
+
+    maliit_client.dbus->connection_flush(conn);
+
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     /*
     maliit_client.dbus->bus_add_match(conn,
@@ -691,6 +694,8 @@ SDL_bool SDL_Maliit_Init(void)
 //    }
 
     //maliit_client.dbus->connection_ref(conn);
+
+    maliit_client.dbus->connection_flush(conn);
 
     maliit_client.conn = conn;
 
