@@ -418,20 +418,20 @@ imInitiatedHide []
         DBusMessageIter iter;
 
         if (!dbus->message_iter_init(msg, &iter)) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message without arguments");
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: no arguments");
         } else {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message details:\n");
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: arguments:\n");
             switch (dbus->message_iter_get_arg_type(&iter)) {
                 case DBUS_TYPE_STRING: {
                     char* value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- argument: %s", value);
                     break;
                 }
                 case DBUS_TYPE_BOOLEAN: {
                     SDL_bool value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value ? "[TRUE]" : "[FALSE]");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
                     break;
                 }
                 case DBUS_TYPE_INT16:
@@ -442,14 +442,14 @@ imInitiatedHide []
                 case DBUS_TYPE_UINT64: {
                     int value = 0;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %d", (int)value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
                     break;
                 }
                 case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "{ARRAY}");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
                     break;
                 case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "(STRUCT)");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
                     break;
             }
         while (dbus->message_iter_next(&iter)) {
@@ -457,13 +457,13 @@ imInitiatedHide []
                 case DBUS_TYPE_STRING: {
                     char* value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value);
                     break;
                 }
                 case DBUS_TYPE_BOOLEAN: {
                     SDL_bool value;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", value ? "[TRUE]" : "[FALSE]");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
                     break;
                 }
                 case DBUS_TYPE_INT16:
@@ -474,19 +474,20 @@ imInitiatedHide []
                 case DBUS_TYPE_UINT64: {
                     int value = 0;
                     dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %d", (int)value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
                     break;
                 }
                 case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "{ARRAY}");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
                     break;
                 case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "(STRUCT)");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
                     break;
                 default:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Message argument: %s", "OTHER");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "OTHER");
             }
             }
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: End of arguments");
         }
     }
 
