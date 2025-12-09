@@ -1,7 +1,7 @@
 /*
   Simple DirectMedia Layer
   Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
-  Copyright (C) 2024 Peter G. <sailfish@nephros.org>
+  Copyright (C) 2025 Peter G. <sailfish@nephros.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
