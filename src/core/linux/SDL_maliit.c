@@ -287,6 +287,24 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
+    // FIXME: should we use the filter for those?
+    //SDL_bool for_us = (dbus->message_get_path(msg) == MALIIT_IMCONTEXT_PATH)
+    //              && (dbus->message_get_interface(msg) == MALIIT_IMCONTEXT_INTERFACE)
+    SDL_bool for_us = strcmp(dbus->message_get_interface(msg), MALIIT_IMCONTEXT_INTERFACE)
+                  && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_INVALID)
+                  && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_ERROR)
+                  && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_METHOD_RETURN) ;
+
+    if (!for_us) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT,
+            "Maliit: ignoring DBus message not intended for us:\n\tpath:%s\n\tiface:%s\n\tmember:%s\n",
+            dbus->message_get_path(msg),
+            dbus->message_get_interface(msg),
+            dbus->message_get_member(msg)
+            );
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
     /*
      * ***** Context Messages *****
      */
@@ -300,8 +318,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
     //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
     } else if (
         (dbus->message_get_member(msg) == "commitString")
-        && (dbus->message_get_path(msg) == MALIIT_IMCONTEXT_PATH)
-        && (dbus->message_get_interface(msg) == MALIIT_IMCONTEXT_INTERFACE)
         && (dbus->message_get_signature(msg) == "siii")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
 
