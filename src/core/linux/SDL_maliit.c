@@ -439,23 +439,7 @@ imInitiatedHide []
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "selection")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "selection");
     } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "pluginSettingsLoaded")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "pluginSettingsLoaded");
-    /* 
-     * ***** Server Messages *****
-     */
-    /*
-    } else if (dbus->message_is_signal(msg, MALIIT_IMSERVER_INTERFACE, "mouseClickedOnPreedit")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "mouseClickedOnPreedit");
-    } else if (dbus->message_is_signal(msg, MALIIT_IMSERVER_INTERFACE, "imInitiatedHide")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s", "imInitiatedHide");
-    } else if (dbus->message_is_signal(msg, MALIIT_IMSERVER_INTERFACE, "invokeAction")) {
-            const char* action; const char* sequence;
-            DBusMessageIter iter;
-            dbus->message_iter_init(msg, &iter);
-            dbus->message_iter_get_basic(&iter, &action);
-            dbus->message_iter_get_basic(&iter, &sequence);
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Event not yet handled: %s: %s, %s", "invokeAction", action, sequence);
-         */
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: event not yet handled: %s", "pluginSettingsLoaded");
      } else {
         DBusMessageIter iter;
 
