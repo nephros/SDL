@@ -297,9 +297,16 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "imInitiatedHide");
         SDL_SendEditingText("", 0, 0);
         return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
-        //commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
+    //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
+    } else if (
+        (dbus->message_get_member(msg) == "commitString")
+        && (dbus->message_get_path(msg) == MALIIT_IMCONTEXT_PATH)
+        && (dbus->message_get_interface(msg) == MALIIT_IMCONTEXT_INTERFACE)
+        && (dbus->message_get_signature(msg) == "siii")) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
+
+        // siii
+        //commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
         DBusMessageIter iter;
         const char *text = NULL;
 
