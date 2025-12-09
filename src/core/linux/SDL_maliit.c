@@ -638,6 +638,11 @@ SDL_bool SDL_Maliit_Init(void)
     DBusConnection *conn;
     char* addr;
 
+    DBusObjectPathVTable vtable;
+
+    SDL_zero(vtable);
+    vtable.message_function = &DBus_MessageFilter;
+
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
 
     maliit_client.cursor_rect.x = -1;
@@ -673,35 +678,18 @@ SDL_bool SDL_Maliit_Init(void)
         return SDL_FALSE;
     }
 
-    dbus->connection_flush(conn);
-
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
-    /*
-    dbus->bus_add_match(conn,
-                        "type='signal', interface='com.meego.inputmethod.uiserver1'",
-                        NULL);
-    */
-    dbus->bus_add_match(conn,
-                        //"type='signal', interface='com.meego.inputmethod.inputcontext1', path='/com/meego/inputmethod/inputcontext'",
-                        "type='signal', interface='com.meego.inputmethod.inputcontext1'",
-                        //"interface='com.meego.inputmethod.inputcontext1'",
-                        NULL);
-    // .. match rules on method calls should not usually give an interface.
-    // https://dbus.freedesktop.org/doc/api/html/group__DBusBus.html#ga4eb6401ba014da3dbe3dc4e2a8e5b3ef
-    //dbus->bus_add_match(conn,
-    //                    "type='method'",
-    //                    NULL);
-
-    dbus->connection_add_filter(conn, &DBus_MessageFilter, dbus, NULL);
-
-//    if (!dbus->bus_register(conn, NULL)) {
-//        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not register connection");
-//        return SDL_FALSE;
-//    }
+    dbus->connection_flush(conn);
 
     //dbus->connection_ref(conn);
 
+    char matchstr[128];
+    (void)SDL_snprintf(matchstr, sizeof(matchstr), "type='signal',interface='%s'", MALIIT_IMCONTEXT_INTERFACE);
+    dbus->bus_add_match(conn, matchstr, NULL);
+    dbus->connection_try_register_object_path(conn, MALIIT_IMCONTEXT_PATH, &vtable, dbus, NULL);
     dbus->connection_flush(conn);
+
+
 
     maliit_client.conn = conn;
 
