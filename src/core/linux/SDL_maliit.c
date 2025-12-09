@@ -41,6 +41,9 @@
 #define MALIIT_IMCONTEXT_INTERFACE "com.meego.inputmethod.inputcontext1"
 #define MALIIT_IMCONTEXT_PATH "/com/meego/inputmethod/inputcontext"
 
+#define DBUS_LOCAL_PATH "/org/freedesktop/DBus/Local" ;
+#define DBUS_LOCAL_INTERFACE "org.freedesktop.DBus.Local" ;
+
 #define DBUS_TIMEOUT 500
 
 typedef struct _MaliitClient
