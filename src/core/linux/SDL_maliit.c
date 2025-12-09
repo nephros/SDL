@@ -289,37 +289,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
-    int mtype = dbus->message_get_type(msg);
-    const char* mtype_s;
-    switch (mtype) {
-        case DBUS_MESSAGE_TYPE_INVALID:
-            mtype_s = "------- INVALID";
-            break;
-        case DBUS_MESSAGE_TYPE_METHOD_CALL:
-            mtype_s = "------- CALL";
-            break;
-        case DBUS_MESSAGE_TYPE_METHOD_RETURN:
-             mtype_s ="------- RETURN";
-            break;
-        case DBUS_MESSAGE_TYPE_ERROR:
-            mtype_s ="------- ERROR";
-            break;
-        case DBUS_MESSAGE_TYPE_SIGNAL:
-             mtype_s ="------- SIGNAL";
-            break;
-    }
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message of type: %s", mtype_s);
-    if (mtype == DBUS_MESSAGE_TYPE_ERROR) {
-        const char* err =  dbus->message_get_error_name(msg);
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- error: %s", err);
-    }
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sender: %s", dbus->message_get_sender(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- path: %s",   dbus->message_get_path(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- iface: %s",  dbus->message_get_interface(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- dst: %s",    dbus->message_get_destination(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- member: %s", dbus->message_get_member(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sig: %s",    dbus->message_get_signature(msg));
-
     /*
      * ***** Context Messages *****
      */
@@ -444,7 +413,7 @@ imInitiatedHide []
         DBusMessageIter iter;
 
         if (!dbus->message_iter_init(msg, &iter)) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message has no arguments");
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message without arguments");
         } else {
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled Message details:\n");
             switch (dbus->message_iter_get_arg_type(&iter)) {
@@ -515,6 +484,38 @@ imInitiatedHide []
             }
         }
     }
+
+    int mtype = dbus->message_get_type(msg);
+    const char* mtype_s;
+    switch (mtype) {
+        case DBUS_MESSAGE_TYPE_INVALID:
+            mtype_s = "------- INVALID";
+            break;
+        case DBUS_MESSAGE_TYPE_METHOD_CALL:
+            mtype_s = "------- CALL";
+            break;
+        case DBUS_MESSAGE_TYPE_METHOD_RETURN:
+             mtype_s ="------- RETURN";
+            break;
+        case DBUS_MESSAGE_TYPE_ERROR:
+            mtype_s ="------- ERROR";
+            break;
+        case DBUS_MESSAGE_TYPE_SIGNAL:
+             mtype_s ="------- SIGNAL";
+            break;
+    }
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled message of type: %s", mtype_s);
+    if (mtype == DBUS_MESSAGE_TYPE_ERROR) {
+        const char* err =  dbus->message_get_error_name(msg);
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- error: %s", err);
+    }
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sender: %s", dbus->message_get_sender(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- path: %s",   dbus->message_get_path(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- iface: %s",  dbus->message_get_interface(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- dst: %s",    dbus->message_get_destination(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- member: %s", dbus->message_get_member(msg));
+    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sig: %s",    dbus->message_get_signature(msg));
+
 
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
