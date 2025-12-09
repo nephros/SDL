@@ -553,7 +553,6 @@ imInitiatedHide []
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- member: %s", dbus->message_get_member(msg));
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sig: %s",    dbus->message_get_signature(msg));
 
-
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
@@ -564,24 +563,11 @@ static void MaliitClientCallServerMethod(MaliitClient *client, const char *metho
         return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method: %s", method);
+
     if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
         SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMS method FAILED");
     }
 }
-
-/* currently unused
-static void MaliitClientCallContextMethod(MaliitClient *client, const char *method)
-{
-    if (!client->conn) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method without a connection!");
-        return;
-    }
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method: %s", method);
-    if(SDL_DBus_CallVoidMethodOnConnection(client->conn, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMC method FAILED");
-    }
-}
-*/
 
 static char* MaliitClientGetAddress(void)
 {
