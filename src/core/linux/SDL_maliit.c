@@ -303,9 +303,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
 {
     SDL_DBusContext *dbus = (SDL_DBusContext *)data;
 
-    // FIXME: should we use the filter for those?
-    //SDL_bool for_us = (dbus->message_get_path(msg) == MALIIT_IMCONTEXT_PATH)
-    //              && (dbus->message_get_interface(msg) == MALIIT_IMCONTEXT_INTERFACE)
     const char* iface = dbus->message_get_interface(msg);
     SDL_bool for_us = (iface) && strcmp(iface, MALIIT_IMCONTEXT_INTERFACE)
                   && (dbus->message_get_type(msg) != DBUS_MESSAGE_TYPE_INVALID)
