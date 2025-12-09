@@ -31,6 +31,10 @@
 #include "SDL_syswm.h"
 #include "SDL_hints.h"
 
+#if defined(SDL_VIDEO_DRIVER_WAYLAND) && defined(SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH)
+#include "../../video/wayland/SDL_waylandvideo.h"
+#endif
+
 #define MALIIT_ADDRESS_SERVICE "org.maliit.server"
 #define MALIIT_ADDRESS_INTERFACE "org.maliit.Server.Address"
 #define MALIIT_ADDRESS_PATH "/org/maliit/server/address"
@@ -184,12 +188,6 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: no window info");
         return;
     }
-    // FIXME: Which app name/window id to use?
-    // maybe:
-    //const char* appname = info.info.wl.shell_surface.wl;
-    // or:
-    // const char* appname = SDL_GetWindowID(focused_win);
-    // meanwhile:
     const char *appname = GetAppName();
 
     const char *key;
@@ -771,6 +769,23 @@ void SDL_Maliit_PumpEvents(void)
 
 static char *GetAppName(void)
 {
+#if defined(SDL_VIDEO_DRIVER_WAYLAND) && defined(SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH)
+    // see src/video/wayland/SDL_waylandvideo.c::get_classname
+    char *class;
+    SDL_WaylandOutputData *wl_output;
+    SDL_VideoData *wl_video;
+    wl_output = SDL_GetDisplayForWindow(0)->driverdata;
+    if (wl_output) {
+        wl_video = wl_output->videodata;
+        if(wl_video) {
+            class = wl_video->classname;
+            if (class) {
+                return SDL_strdup(class);
+            }
+        }
+    }
+#else
+
     char *spot;
     char procfile[1024];
     char linkfile[1024];
@@ -787,6 +802,7 @@ static char *GetAppName(void)
             return SDL_strdup(linkfile);
         }
     }
+#endif
     return SDL_strdup("SDL_App");
 }
 
