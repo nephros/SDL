@@ -178,8 +178,6 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 {
     SDL_Window *focused_win = NULL;
     SDL_SysWMinfo info;
-    char *appname;
-    char *key;
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateWidgetInfo, focus: %s", focus ? "true" : "false");
 
@@ -201,7 +199,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     // or:
     // const char* appname = SDL_GetWindowID(focused_win);
     // meanwhile:
-    appname = GetAppName();
+    char* appname = GetAppName();
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: using app name %s", appname);
 
@@ -235,14 +233,15 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 
     // There is SDL_DBus_AppendDictWithKeyValue(args, key, value); but we can not use it.
 
-    key = "winId";
+    char* key;
+    key = SDL_strdup("winId");
     dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
     dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "winId"
     dbus->message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant);   // s
     dbus->message_iter_append_basic(&variant, DBUS_TYPE_STRING, &appname);         // "foo"
     dbus->message_iter_close_container(&entry, &variant);                          // ,
     dbus->message_iter_close_container(&dict, &entry);                              // END entry
-    key = "focusState";
+    key = SDL_strdup("focusState");
     Uint32 value = focus ? 1 : 0;
     dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
     dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "focusState"
@@ -250,7 +249,7 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     dbus->message_iter_append_basic(&variant, DBUS_TYPE_UINT32, &value);           // 1/0
     dbus->message_iter_close_container(&entry, &variant);                          // ,
     dbus->message_iter_close_container(&dict, &entry);                             // END entry
-    key = "toolbarId";
+    key = SDL_strdup("toolbarId");
     value = 0;
     dbus->message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);  // BEG entry
     dbus->message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key);               // "toolbarId"
@@ -261,6 +260,9 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
 
     dbus->message_iter_close_container(&args, &dict);                              // }
 
+    SDL_free(key);
+    SDL_free(appname);
+
     // Append boolean
     dbus_bool_t focusChanged = TRUE;
     dbus->message_iter_append_basic(&args, DBUS_TYPE_BOOLEAN, &focusChanged);
@@ -268,16 +270,6 @@ static void Maliit_updateWidgetInfo(SDL_bool focus)
     dbus->connection_send(maliit_client.conn, msg, DBUS_TYPE_INVALID);
     dbus->connection_flush(maliit_client.conn);
     dbus->message_unref(msg);
-
-    SDL_free(key);
-    SDL_free(appname);
-/*
-    // FIXME: is the correct signature <arg type="a{sv}" name="stateInformation"/>??
-    SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "updateWidgetInformation",
-                            DBUS_TYPE_STRING, &appname,
-                            DBUS_TYPE_BOOLEAN, &focus,
-                            DBUS_TYPE_INVALID);
-*/
 }
 
 
@@ -641,6 +633,7 @@ static Uint32 Maliit_ModState(void)
 SDL_bool SDL_Maliit_Init(void)
 {
     SDL_DBusContext *dbus;
+    DBusConnection *conn;
     char* addr;
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
@@ -664,7 +657,7 @@ SDL_bool SDL_Maliit_Init(void)
         return SDL_FALSE;
     }
 
-    DBusConnection *conn = dbus->connection_open_private(addr, NULL);
+    conn = dbus->connection_open_private(addr, NULL);
     if (!conn) {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
         return SDL_FALSE;
