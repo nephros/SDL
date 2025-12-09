@@ -565,18 +565,11 @@ static void MaliitClientCallContextMethod(MaliitClient *client, const char *meth
 static char* MaliitClientGetAddress(void)
 {
     char *addr = NULL;
-    SDL_DBusContext *dbus;
 
     addr = SDL_getenv("MALIIT_SERVER_ADDRESS");
     if (addr != NULL) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Server address set from environment");
         return SDL_strdup(addr);
-    }
-
-    dbus = maliit_client.dbus;
-    if (!dbus) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not connect to bus");
-        return NULL;
     }
 
     SDL_DBus_QueryProperty(MALIIT_ADDRESS_SERVICE, MALIIT_ADDRESS_PATH, MALIIT_ADDRESS_INTERFACE,
@@ -585,6 +578,7 @@ static char* MaliitClientGetAddress(void)
         SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not get Maliit server address!");
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Server address determined from bus");
+
     return SDL_strdup(addr);
 }
 
@@ -624,7 +618,6 @@ static Uint32 Maliit_ModState(void)
 SDL_bool SDL_Maliit_Init(void)
 {
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: Init");
-    maliit_client.dbus = SDL_DBus_GetContext();
 
     maliit_client.cursor_rect.x = -1;
     maliit_client.cursor_rect.y = -1;
@@ -639,13 +632,23 @@ SDL_bool SDL_Maliit_Init(void)
         return SDL_FALSE;
     }
 
+    maliit_client.dbus = SDL_DBus_GetContext();
+    if (!maliit_client.dbus) {
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not connect to DBus");
+        return SDL_FALSE;
+    }
+
     DBusConnection *conn = maliit_client.dbus->connection_open_private(addr, NULL);
     if (!conn) {
         SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Could not open connection");
         return SDL_FALSE;
     }
+
     if (maliit_client.dbus->connection_get_is_connected(conn)) {
         SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit: connection established.");
+    } else {
+        SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: connection could not be established.");
+        return SDL_FALSE;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: setting up message filter");
     /*
