@@ -46,18 +46,25 @@
 
 #define DBUS_TIMEOUT 500
 
+/* Map Qt Enums */
+#define MALIIT_KEYPRESS 6   //  QEvent::Type / QEvent::KeyPress
+#define MALIIT_KEYRELEASE 7 //  QEvent::Type / QEvent::KeyRelease
+
 typedef struct _MaliitClient
 {
     DBusConnection *conn;
     char* id;
     SDL_Rect cursor_rect;
     SDL_bool active;
+    SDL_bool shown;
 
 } MaliitClient;
 
 static MaliitClient maliit_client;
 
 static char *GetAppName(void);
+
+static void Malitt_DissectMessage(DBusMessage *msg);
 
 static SDL_bool Maliit_CheckConnection(void);
 
@@ -89,14 +96,16 @@ static void Maliit_updateOrientation(SDL_bool doit)
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateOrientation, SDL: %s, IMS: %d", os, orientation);
     if (Maliit_CheckConnection()) {
         if (doit) {
-            if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationAboutToChange",
+            if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE,
+                                    "appOrientationAboutToChange",
                                     DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID)) {
-                SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+                SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call failed");
             }
         } else {
-            if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, "appOrientationChanged",
+            if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE,
+                                    "appOrientationChanged",
                                     DBUS_TYPE_INT32, &orientation, DBUS_TYPE_INVALID)) {
-                SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+                SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call failed");
             }
         }
     }
@@ -248,27 +257,101 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
      * ***** Context Messages *****
      */
     //if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "activationLostEvent")) {
+    if (member) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", member);
+    }
     if ( (member) && (sig)
         && (strcmp(member, "activationLostEvent") == 0)) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "activationLostEvent");
+        SDL_SendEditingText("", 0, 0);
+        maliit_client.active = SDL_FALSE;
         return DBUS_HANDLER_RESULT_HANDLED;
-    //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "imInitiatedHide")) {
     } else if ( (member) && (sig)
         && (strcmp(member, "imInitiatedHide") == 0) ) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "imInitiatedHide");
-        SDL_SendEditingText("", 0, 0);
+        //SDL_SendEditingText("", 0, 0);
+        maliit_client.shown = SDL_FALSE;
         return DBUS_HANDLER_RESULT_HANDLED;
-    //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "commitString")) {
+    } else if ( (member) && (sig)
+        && (strcmp(member, "keyEvent") == 0)
+        && (strcmp(sig, "iiisbiy") == 0)  ) {
+        // keyEvent [dbus.Int32(7), dbus.Int32(16777219), dbus.Int32(0), dbus.String(u'\x08'), dbus.Boolean(False), dbus.Int32(1), dbus.Byte(2)]
+        //    proxy->keyEvent(keyEvent.type(), keyEvent.key(), keyEvent.modifiers(),
+        //                                keyEvent.text(), keyEvent.isAutoRepeat(), keyEvent.count(), requestType);
+
+        //    keyEvent.type() is pressed (6)/released(7);
+        //    on SFOS we only get Enter (16777220) and Backspace (16777219)
+        //
+
+        dbus_int32_t keytype;
+        dbus_int32_t key;
+        dbus_int32_t mods;
+        const char* text;
+        SDL_bool    repeats;
+        dbus_int32_t repeatCount;
+
+        DBusMessageIter iter;
+        dbus->message_iter_init(msg, &iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &keytype);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &key);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &mods);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_STRING) {
+            dbus->message_iter_get_basic(&iter, &text);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_BOOLEAN) {
+            dbus->message_iter_get_basic(&iter, &repeats);
+        }
+        dbus->message_iter_next(&iter);
+        if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_INT32) {
+            dbus->message_iter_get_basic(&iter, &repeatCount);
+        }
+
+        //SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: keyEvent: %d, %d, %d,^%s", keytype, key, mods, text);
+
+        SDL_Event event      = {};
+        if (keytype == MALIIT_KEYPRESS) {
+            event.key.type = SDL_KEYDOWN; event.key.state = SDL_PRESSED;
+        } else if (keytype == MALIIT_KEYRELEASE) {
+            event.key.type = SDL_KEYUP; event.key.state = SDL_RELEASED;
+        } else {
+            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: keyEvent: unhandled type: %d", keytype);
+        }
+        if (SDL_strlen(text) != 1) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: keyEvent: multibyte scancode: %s", text);
+        } else {
+            event.key.keysym.sym = text[0];
+            event.key.keysym.scancode = SDL_SCANCODE_TO_KEYCODE(text[0]);;
+        }
+
+        if (mods =! 0) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: keyEvent: keymod is not handled yet");
+        }
+        if (repeats) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: keyEvent: repeat is not handled yet");
+        }
+
+        // TODO
+        event.key.keysym.mod = KMOD_NONE ;
+        SDL_PushEvent(&event);
+
+        return DBUS_HANDLER_RESULT_HANDLED;
     } else if ( (member) && (sig)
         && (strcmp(member, "commitString") == 0)
         && (strcmp(sig, "siii") == 0)  ) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "commitString");
 
         // siii
         //commitString [dbus.String('asdffg'), dbus.Int32(0), dbus.Int32(0), dbus.Int32(-1)]
-        DBusMessageIter iter;
         const char *text = NULL;
 
+        DBusMessageIter iter;
         dbus->message_iter_init(msg, &iter);
         if (dbus->message_iter_get_arg_type(&iter) == DBUS_TYPE_STRING) {
             dbus->message_iter_get_basic(&iter, &text);
@@ -282,13 +365,11 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
             while (i < text_bytes) {
                 size_t sz = SDL_utf8strlcpy(buf, text + i, sizeof(buf));
                 SDL_SendKeyboardText(buf);
-
                 i += sz;
             }
         }
 
         return DBUS_HANDLER_RESULT_HANDLED;
-    //} else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "updatePreedit")) {
     } else if ( (member) && (sig)
         && (strcmp(member, "updatePreedit") == 0)
         && (strcmp(sig, "sa(iii)iii") == 0) ) {
@@ -297,7 +378,6 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
          // i replacementStart The position at which characters are to be replaced relative from the start of the preedit string.
          // i replacementLength The number of characters to be replaced in the preedit string.
          // i cursorPos Cursor position. If it is less than 0, then the cursor will be hidden.
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: got a DBus message: %s", "updatePreedit");
         //return DBUS_HANDLER_RESULT_HANDLED;
         char *text = NULL;
         //Sint32 start_pos, end_pos;
@@ -321,108 +401,22 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
         // FIXME: (SDL_GetHintBoolean(SDL_HINT_IME_SUPPORT_EXTENDED_TEXT, SDL_FALSE)) {
         if (text) {
             SDL_SendEditingText(text, cursor, chars);
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Sent preedit text: %s", text);
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Sent preedit text: %s %d %d", text, cursor, chars);
         } else {
             SDL_SendEditingText("", 0, 0);
         }
         SDL_Maliit_UpdateTextRect(NULL);
-        return DBUS_HANDLER_RESULT_HANDLED;
-/*
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setRedirectKeys")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "RedirectKeys");
-        return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setDetectableAutoRepeat")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setDetectableAutoRepeat");
-        return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setGlobalCorrectionEnabled")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setGlobalCorrectionEnabled");
-        return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setLanguage")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Ignoring event: %s", "setLanguage");
-        return DBUS_HANDLER_RESULT_HANDLED;
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "selection")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: event not yet handled: %s", "selection");
-    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "pluginSettingsLoaded")) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: event not yet handled: %s", "pluginSettingsLoaded");
-*/
-     } else {
-         /*
-        DBusMessageIter iter;
 
-        if (!dbus->message_iter_init(msg, &iter)) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: no arguments");
-        } else {
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: arguments:\n");
-            switch (dbus->message_iter_get_arg_type(&iter)) {
-                case DBUS_TYPE_STRING: {
-                    char* value;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- argument: %s", value);
-                    break;
-                }
-                case DBUS_TYPE_BOOLEAN: {
-                    SDL_bool value;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
-                    break;
-                }
-                case DBUS_TYPE_INT16:
-                case DBUS_TYPE_UINT16:
-                case DBUS_TYPE_INT32:
-                case DBUS_TYPE_UINT32:
-                case DBUS_TYPE_INT64:
-                case DBUS_TYPE_UINT64: {
-                    int value = 0;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
-                    break;
-                }
-                case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
-                    break;
-                case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
-                    break;
-            }
-        while (dbus->message_iter_next(&iter)) {
-            switch (dbus->message_iter_get_arg_type(&iter)) {
-                case DBUS_TYPE_STRING: {
-                    char* value;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value);
-                    break;
-                }
-                case DBUS_TYPE_BOOLEAN: {
-                    SDL_bool value;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
-                    break;
-                }
-                case DBUS_TYPE_INT16:
-                case DBUS_TYPE_UINT16:
-                case DBUS_TYPE_INT32:
-                case DBUS_TYPE_UINT32:
-                case DBUS_TYPE_INT64:
-                case DBUS_TYPE_UINT64: {
-                    int value = 0;
-                    dbus->message_iter_get_basic(&iter, &value);
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
-                    break;
-                }
-                case DBUS_TYPE_ARRAY:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
-                    break;
-                case DBUS_TYPE_STRUCT:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
-                    break;
-                default:
-                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "OTHER");
-            }
-            }
-            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: End of arguments");
-        }
-        */
-    }
+        return DBUS_HANDLER_RESULT_HANDLED;
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setRedirectKeys")) {
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setDetectableAutoRepeat")) {
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setGlobalCorrectionEnabled")) {
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "setLanguage")) {
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "selection")) {
+//    } else if (dbus->message_is_signal(msg, MALIIT_IMCONTEXT_INTERFACE, "pluginSettingsLoaded")) {
+      }
+
+    SDL_LogPriority log_input_prio = SDL_LogGetPriority(SDL_LOG_CATEGORY_INPUT);
 
     int mtype = dbus->message_get_type(msg);
     const char* mtype_s;
@@ -434,38 +428,44 @@ static DBusHandlerResult DBus_MessageFilter(DBusConnection *conn, DBusMessage *m
             mtype_s = "------- CALL";
             break;
         case DBUS_MESSAGE_TYPE_METHOD_RETURN:
-             mtype_s ="------- RETURN";
+             mtype_s = "------- RETURN";
             break;
         case DBUS_MESSAGE_TYPE_ERROR:
-            mtype_s ="------- ERROR";
+            mtype_s = "------- ERROR";
             break;
         case DBUS_MESSAGE_TYPE_SIGNAL:
-             mtype_s ="------- SIGNAL";
+             mtype_s = "------- SIGNAL";
             break;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Unhandled message of type: %s", mtype_s);
     if (mtype == DBUS_MESSAGE_TYPE_METHOD_CALL) {
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- member: %s", dbus->message_get_member(msg));
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- member: %s", dbus->message_get_member(msg));
     }
     if (mtype == DBUS_MESSAGE_TYPE_ERROR) {
         const char* err =  dbus->message_get_error_name(msg);
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- error: %s", err);
     }
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sender: %s", dbus->message_get_sender(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- path: %s",   dbus->message_get_path(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- iface: %s",  dbus->message_get_interface(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- dst: %s",    dbus->message_get_destination(msg));
-    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sig: %s",    dbus->message_get_signature(msg));
+    if (log_input_prio == SDL_LOG_PRIORITY_INFO) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sender: %s", dbus->message_get_sender(msg));
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- path: %s",   dbus->message_get_path(msg));
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- iface: %s",  dbus->message_get_interface(msg));
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- dst: %s",    dbus->message_get_destination(msg));
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- sig: %s",    dbus->message_get_signature(msg));
+    }
+
+    if (log_input_prio == SDL_LOG_PRIORITY_DEBUG) {
+        Malitt_DissectMessage(msg);
+    }
 
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static void MaliitClientCallServerMethod(MaliitClient *client, const char *method)
+static void MaliitClientCallServerMethod(const char *method)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMServer method: %s", method);
 
     if (Maliit_CheckConnection()) {
-        if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
+        if(SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
             SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMServer method failed: %s", method);
         }
     }
@@ -491,6 +491,7 @@ static char* MaliitClientGetAddress(void)
     return SDL_strdup(addr);
 }
 
+/*
 static Uint32 Maliit_ModState(void)
 {
     Uint32 maliit_mods = 0;
@@ -523,6 +524,7 @@ static Uint32 Maliit_ModState(void)
 
     return maliit_mods;
 }
+*/
 
 static SDL_bool Maliit_CheckConnection(void)
 {
@@ -575,10 +577,19 @@ SDL_bool SDL_Maliit_Init(void)
     SDL_zero(vtable_local);
     vtable_local.message_function = &DBus_Disconnect;
 
-
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit IME: Init");
 
+    if (SDL_GetHintBoolean(SDL_HINT_IME_SUPPORT_EXTENDED_TEXT, SDL_TRUE)) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: SDL_HINT_IME_SUPPORT_EXTENDED_TEXT may not work correctly!");
+    }
+    if (SDL_GetHintBoolean(SDL_HINT_IME_INTERNAL_EDITING, SDL_FALSE)) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: SDL_HINT_IME_INTERNAL_EDITING not supported!");
+        SDL_SetHint(SDL_HINT_IME_INTERNAL_EDITING, "0");
+    }
+
+
     maliit_client.active = SDL_FALSE;
+    maliit_client.shown = SDL_FALSE;
 
     maliit_client.cursor_rect.x = -1;
     maliit_client.cursor_rect.y = -1;
@@ -631,7 +642,8 @@ SDL_bool SDL_Maliit_Init(void)
     dbus->connection_flush(conn);
     maliit_client.conn = conn;
 
-    SDL_Maliit_SetFocus(SDL_GetKeyboardFocus() != NULL);
+    MaliitClientCallServerMethod("hideInputMethod");
+    //SDL_Maliit_SetFocus(SDL_GetKeyboardFocus() != NULL);
     SDL_Maliit_UpdateTextRect(NULL);
 
     SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: Init: done");
@@ -649,6 +661,8 @@ void SDL_Maliit_Quit(void)
     }
     dbus = NULL;
     maliit_client.conn = NULL;
+    maliit_client.active = SDL_FALSE;
+    maliit_client.shown = SDL_FALSE;
     SDL_memset(&maliit_client.cursor_rect, 0, sizeof(maliit_client.cursor_rect));
     SDL_DelHintCallback(SDL_HINT_IME_INTERNAL_EDITING, Maliit_SetCapabilities, NULL);
 }
@@ -658,21 +672,23 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit IME: SetFocus");
 
     if (Maliit_CheckConnection()) {
-
         if (focused) {
             if (!maliit_client.active) {
                 SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: activating");
-                MaliitClientCallServerMethod(&maliit_client, "activateContext");
+                MaliitClientCallServerMethod("activateContext");
                 // lets assume we succeeded:
                 maliit_client.active = SDL_TRUE;
                 Maliit_updateOrientation(SDL_FALSE); // send the orientation change warning
+                Maliit_updateWidgetInfo(SDL_TRUE);
             }
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: showing");
-            MaliitClientCallServerMethod(&maliit_client, "showInputMethod");
+            MaliitClientCallServerMethod("showInputMethod");
             Maliit_updateOrientation(SDL_TRUE); // send the actual orientation change
+            maliit_client.shown = SDL_TRUE;
         } else {
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: hiding");
-            MaliitClientCallServerMethod(&maliit_client, "hideInputMethod");
+            MaliitClientCallServerMethod("hideInputMethod");
+            maliit_client.shown = SDL_FALSE;
         }
     }
 }
@@ -680,7 +696,7 @@ void SDL_Maliit_SetFocus(SDL_bool focused)
 void SDL_Maliit_Reset(void)
 {
     SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT, "Maliit IME: Reset");
-    MaliitClientCallServerMethod(&maliit_client, "reset");
+    MaliitClientCallServerMethod("reset");
 }
 
 SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state)
@@ -716,8 +732,10 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
     if (Maliit_CheckConnection()) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateInputMethodArea: %d %d %d %d",
                                  x, y, cursor->w,cursor->h);
-        if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
-                                DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID)) {
+        if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE,
+                                "updateInputMethodArea",
+                                DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h,
+                                DBUS_TYPE_INVALID)) {
             SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call failed: %s", "updateInputMethodArea");
         }
     }
@@ -779,5 +797,82 @@ static char *GetAppName(void)
     return SDL_strdup("SDL_App");
 }
 
+static void Malitt_DissectMessage(DBusMessage *msg) {
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
+
+    DBusMessageIter iter;
+    if (!dbus->message_iter_init(msg, &iter)) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: no arguments");
+    } else {
+        SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: arguments:\n");
+        switch (dbus->message_iter_get_arg_type(&iter)) {
+            case DBUS_TYPE_STRING: {
+                char* value;
+                dbus->message_iter_get_basic(&iter, &value);
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------- argument: %s", value);
+                break;
+            }
+            case DBUS_TYPE_BOOLEAN: {
+                SDL_bool value;
+                dbus->message_iter_get_basic(&iter, &value);
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
+                break;
+            }
+            case DBUS_TYPE_INT16:
+            case DBUS_TYPE_UINT16:
+            case DBUS_TYPE_INT32:
+            case DBUS_TYPE_UINT32:
+            case DBUS_TYPE_INT64:
+            case DBUS_TYPE_UINT64: {
+                int value = 0;
+                dbus->message_iter_get_basic(&iter, &value);
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
+                break;
+            }
+            case DBUS_TYPE_ARRAY:
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
+                break;
+            case DBUS_TYPE_STRUCT:
+                SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
+                break;
+        }
+        while (dbus->message_iter_next(&iter)) {
+            switch (dbus->message_iter_get_arg_type(&iter)) {
+                case DBUS_TYPE_STRING: {
+                    char* value;
+                    dbus->message_iter_get_basic(&iter, &value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value);
+                    break;
+                }
+                case DBUS_TYPE_BOOLEAN: {
+                    SDL_bool value;
+                    dbus->message_iter_get_basic(&iter, &value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", value ? "[TRUE]" : "[FALSE]");
+                    break;
+                }
+                case DBUS_TYPE_INT16:
+                case DBUS_TYPE_UINT16:
+                case DBUS_TYPE_INT32:
+                case DBUS_TYPE_UINT32:
+                case DBUS_TYPE_INT64:
+                case DBUS_TYPE_UINT64: {
+                    int value = 0;
+                    dbus->message_iter_get_basic(&iter, &value);
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %d", (int)value);
+                    break;
+                }
+                case DBUS_TYPE_ARRAY:
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "{ARRAY}");
+                    break;
+                case DBUS_TYPE_STRUCT:
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "(STRUCT)");
+                    break;
+                default:
+                    SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------ argument: %s", "OTHER");
+            }
+            }
+            SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "------: End of arguments");
+        }
+}
 
 /* vi: set ts=4 sw=4 expandtab: */
