@@ -759,6 +759,12 @@ static char *GetAppName(void)
     char linkfile[1024];
     int linksize;
 
+    // FIXME: is this useful?
+    const char *app = SDL_GetHint(SDL_HINT_APP_NAME);
+    if(app) {
+        return SDL_strdup(app);
+    }
+
     (void)SDL_snprintf(procfile, sizeof(procfile), "/proc/%d/exe", getpid());
     linksize = readlink(procfile, linkfile, sizeof(linkfile) - 1);
     if (linksize > 0) {
