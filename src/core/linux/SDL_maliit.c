@@ -716,7 +716,7 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
     if (Maliit_CheckConnection()) {
         SDL_LogDebug(SDL_LOG_CATEGORY_INPUT, "Maliit: updateInputMethodArea: %d %d %d %d",
                                  x, y, cursor->w,cursor->h);
-        if(!SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
+        if(!SDL_DBus_CallVoidMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
                                 DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID)) {
             SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call failed: %s", "updateInputMethodArea");
         }
