@@ -466,7 +466,7 @@ static void MaliitClientCallServerMethod(MaliitClient *client, const char *metho
 
     if (Maliit_CheckConnection()) {
         if(SDL_DBus_CallVoidMethodOnConnection(client->conn, NULL, MALIIT_IMSERVER_PATH, MALIIT_IMSERVER_INTERFACE, method, DBUS_TYPE_INVALID) == SDL_FALSE) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMServer method FAILED");
+            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Maliit: calling IMServer method failed: %s", method);
         }
     }
 }
@@ -718,7 +718,7 @@ void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect)
                                  x, y, cursor->w,cursor->h);
         if(!SDL_DBus_CallMethodOnConnection(maliit_client.conn, NULL, MALIIT_IMCONTEXT_PATH, MALIIT_IMCONTEXT_INTERFACE, "updateInputMethodArea",
                                 DBUS_TYPE_INT32, &x, DBUS_TYPE_INT32, &y, DBUS_TYPE_INT32, &cursor->w, DBUS_TYPE_INT32, &cursor->h, DBUS_TYPE_INVALID)) {
-            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call FAILED");
+            SDL_LogError(SDL_LOG_CATEGORY_INPUT, "Maliit: Call failed: %s", "updateInputMethodArea");
         }
     }
 }
