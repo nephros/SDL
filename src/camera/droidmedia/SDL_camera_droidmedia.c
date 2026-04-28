@@ -584,7 +584,7 @@ static bool initDroid()
     droid_media_camera_constants_init(&cameraConstants);
     droid_media_colour_format_constants_init(&colorFormats);
 #if DEBUG_CAMERA
-SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Pixel Formats:\n\n\
+SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Pixel Formats:\n\n\
   %d: HAL_PIXEL_FORMAT_RGBA_8888\n\
   %d: HAL_PIXEL_FORMAT_RGBX_8888\n\
   %d: HAL_PIXEL_FORMAT_RGB_888\n\
@@ -597,7 +597,7 @@ SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Pixel Formats:\n\n\
   %d: HAL_PIXEL_FORMAT_YCbCr_422_I\n\
   %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
   %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\n\
-", 
+",
   pixelFormats.HAL_PIXEL_FORMAT_RGBA_8888,
   pixelFormats.HAL_PIXEL_FORMAT_RGBX_8888,
   pixelFormats.HAL_PIXEL_FORMAT_RGB_888,
@@ -612,7 +612,7 @@ SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Pixel Formats:\n\n\
   pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka
 );
 
-SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Color Formats:\n\n\
+SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Color Formats:\n\n\
   %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
   %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\
   %d: OMX_COLOR_FormatYUV420Planar\n\
@@ -627,7 +627,6 @@ SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Color Formats:\n\n\
   %d: OMX_COLOR_Format32bitBGRA8888\n\
   %d: OMX_COLOR_Format16bitRGB565\n\
   %d: OMX_COLOR_Format16bitBGR565\n\
-  %d: OMX_COLOR_FormatYUV420Flexible\n\n\
 ",
   colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m,
   colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka,
@@ -642,8 +641,7 @@ SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ïnitialized Color Formats:\n\n\
   colorFormats.OMX_COLOR_Format32bitARGB8888,
   colorFormats.OMX_COLOR_Format32bitBGRA8888,
   colorFormats.OMX_COLOR_Format16bitRGB565,
-  colorFormats.OMX_COLOR_Format16bitBGR565,
-  colorFormats.OMX_COLOR_FormatYUV420Flexible
+  colorFormats.OMX_COLOR_Format16bitBGR565
 );
 #endif
     return true;
