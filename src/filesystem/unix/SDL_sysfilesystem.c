@@ -559,10 +559,20 @@ char *SDL_SYS_GetUserFolder(SDL_Folder folder)
         break;
 
     case SDL_FOLDER_SAVEDGAMES:
+#ifdef SDL_PLATFORM_SAILFISHOS
+        result = xdg_user_dir_lookup("DOCUMENTS");
+        SDL_strlcat(result, "/Games", 128);
+        goto append_slash;
+#endif
         SDL_SetError("Saved Games folder unavailable on XDG");
         return NULL;
 
     case SDL_FOLDER_SCREENSHOTS:
+#ifdef SDL_PLATFORM_SAILFISHOS
+        result = xdg_user_dir_lookup("PICTURES");
+        SDL_strlcat(result, "/Screenshots", 128);
+        goto append_slash;
+#endif
         SDL_SetError("Screenshots folder unavailable on XDG");
         return NULL;
 
