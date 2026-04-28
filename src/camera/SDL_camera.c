@@ -32,6 +32,10 @@
 
 // Available camera drivers
 static const CameraBootStrap *const bootstrap[] = {
+#ifdef SDL_CAMERA_DRIVER_DROIDMEDIA
+    // SailfishOS is Linux, but likely does not have v4l2 or pipewire, so put this first.
+    &DROIDCAMERA_bootstrap,
+#endif
 #ifdef SDL_CAMERA_DRIVER_V4L2
     &V4L2_bootstrap,
 #endif
@@ -1559,6 +1563,11 @@ bool SDL_CameraInit(const char *driver_name)
 
     if (initialized) {
         SDL_DebugLogBackend("camera", camera_driver.name);
+#ifdef SDL_CAMERA_DRIVER_DROIDMEDIA
+        if( SDL_strcmp ("droidcamera", camera_driver.name) != 0) {
+            SDL_Log("SDL was built with support for Droidmedia cameras, but the driver must be explicitly selected by setting SDL_HINT_CAMERA_DRIVER to %s.\nCamera detection will not most likely fail.", "\"droidcamera\"");
+        }
+#endif
     } else {
         // specific drivers will set the error message if they fail, but otherwise we do it here.
         if (!tried_to_init) {

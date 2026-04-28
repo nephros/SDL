@@ -1907,6 +1907,23 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
       )
     endif()
 
+    if(SAILFISHOS)
+      pkg_search_module(DROIDMEDIA droidmedia)
+      if(DROIDMEDIA_FOUND)
+        set(HAVE_DROIDMEDIA 1)
+        sdl_link_dependency(camera LIBS ${DROIDMEDIA_LIBRARIES})
+        sdl_include_directories(PRIVATE SYSTEM ${DROIDMEDIA_INCLUDE_DIRS})
+      endif()
+    endif()
+    if(SDL_CAMERA AND HAVE_DROIDMEDIA)
+      set(SDL_CAMERA_DRIVER_DROIDMEDIA 1)
+      set(HAVE_CAMERA TRUE)
+      sdl_glob_sources(
+        "${SDL3_SOURCE_DIR}/src/camera/droidmedia/*.c"
+        "${SDL3_SOURCE_DIR}/src/camera/droidmedia/*.h"
+      )
+    endif()
+
     if(HAVE_LINUX_INPUT_H)
       set(SDL_INPUT_LINUXEV 1)
     endif()
