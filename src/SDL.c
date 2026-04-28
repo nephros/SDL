@@ -835,6 +835,12 @@ bool SDL_IsTablet(void)
 #elif defined(SDL_PLATFORM_IOS)
     extern bool SDL_IsIPad(void);
     return SDL_IsIPad();
+#elif defined(SDL_PLATFORM_SAILFISHOS)
+#if !SDL_VERSION_ATLEAST(3, 5, 0)
+        return true;
+#else
+#error "Please implement SDL_IsPhone() for SDL_PLATFORM_SAILFISHOS and update SDL_IsTablet()"
+#endif // SDL < 3.5.0
 #else
     return false;
 #endif
