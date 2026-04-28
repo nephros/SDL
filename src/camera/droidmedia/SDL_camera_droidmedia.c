@@ -45,6 +45,14 @@
 #define KEY_PARAM_VIDEO_SIZES_LIST   "preview-size-values"
 #define KEY_PARAM_VIDEO_SIZE         "video-size"
 
+#ifndef SDL_HAVE_YUV
+#pragma message ( "SDL_HAVE_YUV is not defined. This would be useful to have!" )
+#endif
+
+// from video/SDL_yuv_c.h
+extern bool SDL_CalculateYUVSize(SDL_PixelFormat format, int w, int h, size_t *size, size_t *pitch);
+extern bool SDL_ConvertPixels_YUV_to_RGB(int width, int height, SDL_PixelFormat src_format, SDL_Colorspace src_colorspace, SDL_PropertiesID src_properties, const void *src, int src_pitch, SDL_PixelFormat dst_format, SDL_Colorspace dst_colorspace, SDL_PropertiesID dst_properties, void *dst, int dst_pitch);
+
 DroidMediaPixelFormatConstants  pixelFormats;
 DroidMediaColourFormatConstants colorFormats;
 DroidMediaCameraConstants       cameraConstants;
@@ -734,8 +742,9 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
     } else {
         int width = device->actual_spec.width;
         int height = device->actual_spec.height;
-        ssize_t pitch = DroidCam_calculatePitch(PITCH_FORMAT_YUV420SP, width, height);
         SDL_PixelFormat format = device->actual_spec.format;
+        size_t pitch;
+        if(!SDL_CalculateYUVSize(format, width, height, NULL, &pitch));
 #ifdef DEBUG_CAMERA
         int32_t camformat = droid_media_camera_get_video_color_format (device->hidden->droidcam);
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: Camera reported format: %d (0x%x)", camformat, camformat);
@@ -828,16 +837,28 @@ static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf)
 
     SDL_PixelFormat pfx; SDL_Colorspace csp;
     DroidCam_camFormatToSDLFormats(info->format, &pfx, &csp);
-    uint64_t pitch = DroidCam_calculatePitch(PITCH_FORMAT_YUV420SP, info->width, info->height);
 
     if (device->hidden->frame->data != NULL) {
         SDL_DestroySurface(device->hidden->frame->data);
         device->hidden->frame->data = NULL;
     }
+    /*
     device->hidden->frame->data = SDL_CreateSurfaceFrom(info->width, info->height,
                                              SDL_PIXELFORMAT_NV21,
                                              buf,
                                              pitch);
+    */
+    size_t spitch, ssize;
+    SDL_CalculateYUVSize(pfx, info->width, info->height, &ssize, &spitch);
+    size_t dpitch, dsize;
+    SDL_CalculateYUVSize(SDL_PIXELFORMAT_RGBA32, info->width, info->height, &dsize, &dpitch);
+    device->hidden->frame->data = SDL_CreateSurface(info->width, info->height, SDL_PIXELFORMAT_RGBA32);
+    SDL_ConvertPixels_YUV_to_RGB(info->width, info->height,
+                                  pfx, csp,
+                                  0, buf, spitch,
+                                  SDL_PIXELFORMAT_RGBA32, SDL_COLORSPACE_SRGB,
+                                  0, device->hidden->frame->data->pixels, dpitch);
+
     if (device->hidden->frame->data == NULL) {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handleBufferFrame: Surface creation failed: %s",
                                               SDL_GetError());
@@ -850,7 +871,7 @@ static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf)
                             );
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM,
                      "DROIDCAMERA: handleBufferFrame: Created a surface for frame: N: %lu, t[ns]: %lu, %dx%d/%d, p: %lu",
-                     info->frame_number, info->timestamp, info->width, info->height, info->stride, pitch);
+                     info->frame_number, info->timestamp, info->width, info->height, info->stride, spitch);
         device->hidden->frameReady = true;
     }
 
@@ -903,32 +924,4 @@ LOCAL_UNUSED(num2);
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> handleZoom not implemented");
 }
 
-static ssize_t DroidCam_calculatePitch(PitchFormat format, int width, int height)
-{
-    if ( format == PITCH_FORMAT_YUV420P) {
-//        return (width*height*SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_IYUV));
-        // Calculate buffer size for YUV420P frame
-        // Calculate each plane size
-        size_t y_plane = width * height;
-        size_t u_plane = (width / 2) * (height / 2);
-        size_t v_plane = (width / 2) * (height / 2);
-
-        // Total size
-        return y_plane + u_plane + v_plane;
-    }
-    if ( format == PITCH_FORMAT_YUV420SP) {
-//        return (width*height*SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_NV12));
-
-        // Calculate buffer size for YUV420SP (NV12/NV21) frame
-        // Y plane: full resolution
-        size_t y_plane = width * height;
-
-        // UV plane: half resolution (interleaved)
-        size_t uv_plane = (width / 2) * (height / 2) * 2;  // *2 because U and V interleaved
-
-        return y_plane + uv_plane;
-    }
-    // random safe(?) estimate, non-aligned RGBA8888:
-    return width*height*4;
-}
 #endif  // SDL_CAMERA_DRIVER_DROIDMEDIA
