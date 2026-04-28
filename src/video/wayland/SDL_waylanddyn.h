@@ -133,6 +133,11 @@ extern void SDL_WAYLAND_UnloadSymbols(void);
 #define wl_data_source_interface         (*WAYLAND_wl_data_source_interface)
 #define wl_data_device_manager_interface (*WAYLAND_wl_data_device_manager_interface)
 
+#ifdef SDL_WAYLAND_WL_SHELL
+#define wl_shell_surface_interface       (*WAYLAND_wl_shell_surface_interface)
+#define wl_shell_interface               (*WAYLAND_wl_shell_interface)
+#endif
+
 /*
  * These must be included before libdecor.h, otherwise the libdecor header
  * pulls in the system Wayland protocol headers instead of ours.

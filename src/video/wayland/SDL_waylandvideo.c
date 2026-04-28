@@ -708,6 +708,11 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
                           VIDEO_DEVICE_CAPS_SENDS_DISPLAY_CHANGES |
                           VIDEO_DEVICE_CAPS_SENDS_HDR_CHANGES;
 
+#ifdef SDL_PLATFORM_SAILFISHOS
+    device->device_caps |= VIDEO_DEVICE_CAPS_FULLSCREEN_ONLY;
+//    device->device_caps &= ~VIDEO_DEVICE_CAPS_HAS_POPUP_WINDOW_SUPPORT;
+#endif
+
     return device;
 }
 
@@ -1074,12 +1079,16 @@ static void handle_wl_output_done(void *data, struct wl_output *output)
     }
 
     if (internal->display == 0) {
+#ifdef SDL_PLATFORM_SAILFISHOS
+        internal->placeholder.natural_orientation = SDL_ORIENTATION_LANDSCAPE;
+#else
         // First time getting display info, initialize the VideoDisplay
         if (internal->physical_width_mm >= internal->physical_height_mm) {
             internal->placeholder.natural_orientation = SDL_ORIENTATION_LANDSCAPE;
         } else {
             internal->placeholder.natural_orientation = SDL_ORIENTATION_PORTRAIT;
         }
+#endif
         internal->placeholder.current_orientation = internal->orientation;
         internal->placeholder.internal = internal;
 
@@ -1285,6 +1294,13 @@ static void handle_registry_global(void *data, struct wl_registry *registry, uin
     } else if (SDL_strcmp(interface, "wl_seat") == 0) {
         struct wl_seat *seat = wl_registry_bind(d->registry, id, &wl_seat_interface, SDL_min(SDL_WL_SEAT_VERSION, version));
         Wayland_DisplayCreateSeat(d, seat, id);
+#ifdef SDL_WAYLAND_WL_SHELL
+    } else if (SDL_strcmp(interface, wl_shell_interface.name) == 0) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Using deprecated wl_shell interface for wayland. This is not supported by libsdl. Do not file bug reports to upstream regarding this.");
+        d->shell.wl = wl_registry_bind(d->registry, id, &wl_shell_interface, 1);
+        if (!d->shell.wl)
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unable to bind: %s %d.", interface, version);
+#endif
     } else if (SDL_strcmp(interface, "xdg_wm_base") == 0) {
         d->shell.xdg = wl_registry_bind(d->registry, id, &xdg_wm_base_interface, SDL_min(version, 7));
         xdg_wm_base_add_listener(d->shell.xdg, &_xdg_wm_base_listener, NULL);
@@ -1604,6 +1620,12 @@ static void Wayland_VideoCleanup(SDL_VideoDevice *_this)
         }
         data->shm = NULL;
     }
+#ifdef SDL_WAYLAND_WL_SHELL
+    if (data->shell.wl) {
+        wl_shell_destroy(data->shell.wl);
+        data->shell.wl = NULL;
+    }
+#endif
 
     if (data->shell.xdg) {
         xdg_wm_base_destroy(data->shell.xdg);

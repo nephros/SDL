@@ -66,6 +66,12 @@ struct SDL_WindowData
 
             Uint32 serial;
         } xdg;
+#ifdef SDL_WAYLAND_WL_SHELL
+        struct
+        {
+            struct wl_shell_surface *surface;
+        } wl;
+#endif
     } shell_surface;
     enum
     {
@@ -73,6 +79,7 @@ struct SDL_WindowData
         WAYLAND_SHELL_SURFACE_TYPE_XDG_TOPLEVEL,
         WAYLAND_SHELL_SURFACE_TYPE_XDG_POPUP,
         WAYLAND_SHELL_SURFACE_TYPE_LIBDECOR,
+        WAYLAND_SHELL_SURFACE_TYPE_WLSHELL,
         WAYLAND_SHELL_SURFACE_TYPE_CUSTOM
     } shell_surface_type;
     enum

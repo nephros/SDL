@@ -929,6 +929,15 @@ static bool Wayland_ProcessHitTest(SDL_WaylandSeat *seat, Uint32 serial)
                 }
             } else
 #endif
+#ifdef SDL_WAYLAND_WL_SHELL
+            if (window_data->shell_surface_type == WAYLAND_SHELL_SURFACE_TYPE_WLSHELL) {
+                if (window_data->shell_surface.wl.surface) {
+                    wl_shell_surface_move(window_data->shell_surface.wl.surface,
+                                          seat->wl_seat,
+                                          serial);
+                }
+            } else
+#endif
                 if (window_data->shell_surface_type == WAYLAND_SHELL_SURFACE_TYPE_XDG_TOPLEVEL) {
                 if (window_data->shell_surface.xdg.toplevel.xdg_toplevel) {
                     xdg_toplevel_move(window_data->shell_surface.xdg.toplevel.xdg_toplevel,
@@ -953,6 +962,16 @@ static bool Wayland_ProcessHitTest(SDL_WaylandSeat *seat, Uint32 serial)
                                           seat->wl_seat,
                                           serial,
                                           directions_libdecor[window_data->hit_test_result - SDL_HITTEST_RESIZE_TOPLEFT]);
+                }
+            } else
+#endif
+#ifdef SDL_WAYLAND_WL_SHELL
+            if (window_data->shell_surface_type == WAYLAND_SHELL_SURFACE_TYPE_WLSHELL) {
+                if (window_data->shell_surface.wl.surface) {
+                    wl_shell_surface_resize(window_data->shell_surface.wl.surface,
+                                            seat->wl_seat,
+                                            serial,
+                                            directions[window_data->hit_test_result - SDL_HITTEST_RESIZE_TOPLEFT]);
                 }
             } else
 #endif

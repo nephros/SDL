@@ -60,6 +60,9 @@ struct SDL_VideoData
 #ifdef HAVE_LIBDECOR_H
         struct libdecor *libdecor;
 #endif
+#ifdef SDL_WAYLAND_WL_SHELL
+        struct wl_shell *wl;
+#endif
     } shell;
     struct zwp_relative_pointer_manager_v1 *relative_pointer_manager;
     struct zwp_pointer_constraints_v1 *pointer_constraints;
