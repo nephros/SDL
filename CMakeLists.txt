@@ -141,6 +141,25 @@ else()
   set(UNIX_OR_MAC_SYS OFF)
 endif()
 
+# See if we can detect Sailfish OS:
+if(LINUX)
+  if(EXISTS "${CMAKE_SYSROOT}/etc/sailfish-release")
+    set(OS_IS_SAILFISH "true")
+  else()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)
+      cmake_host_system_information(RESULT OSID QUERY DISTRIB_ID)
+      string(COMPARE EQUAL "${OSID}" "sailfishos" OS_IS_SAILFISH)
+      string(COMPARE EQUAL "${OSID}" "auroraos" OS_IS_AURORA)
+    endif()
+  endif()
+  if(OS_IS_SAILFISH OR OS_IS_AURORA)
+    set(SAILFISHOS ON)
+    message(STATUS "We are unlike! Building for a Sailfish OS variant.")
+  else()
+    set(SAILFISHOS OFF)
+  endif()
+endif()
+
 # Emscripten pthreads work, but you need to have a non-pthread fallback build
 #  for systems without support. It's not currently enough to not use
 #  pthread functions in a pthread-build; it won't start up on unsupported
@@ -267,7 +286,7 @@ if(SDL_FRAMEWORK)
   set(SDL_STATIC_AVAILABLE FALSE)
 endif()
 
-if(UNIX AND NOT ANDROID AND NOT RISCOS AND NOT SDL_FRAMEWORK)
+if(UNIX AND NOT ANDROID AND NOT RISCOS AND NOT SAILFISHOS AND NOT SDL_FRAMEWORK)
   set(SDL_RPATH_DEFAULT ON)
 else()
   set(SDL_RPATH_DEFAULT OFF)
@@ -392,6 +411,10 @@ if(EMSCRIPTEN)
   option_string(SDL_EMSCRIPTEN_PERSISTENT_PATH  "Path to mount Emscripten IDBFS at startup or '' to disable" "")
 endif()
 
+if(SAILFISHOS)
+  option(SDL_WAYLAND_WL_SHELL "Enable deprecated Wayland wl_shell support" OFF)
+endif()
+
 set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_REVISION")
 
 cmake_dependent_option(SDL_SHARED "Build a shared version of the library" ${SDL_SHARED_DEFAULT} ${SDL_SHARED_AVAILABLE} OFF)
@@ -428,6 +451,49 @@ if (NGAGE)
   set(SDL_RENDER_GPU       OFF)
   set(SDL_TRAY             OFF)
   set(SDL_VIRTUAL_JOYSTICK OFF)
+endif()
+
+if (SAILFISHOS)
+  # This enables the SDL_PLATFORM_SAILFISHOS define:
+  sdl_compile_definitions(PRIVATE "__SAILFISHOS__")
+  set(SDL_TRAY                     OFF)
+  set(SDL_X11                      OFF)
+  set(SDL_X11_SHARED               OFF)
+  set(SDL_X11_XCURSOR              OFF)
+  set(SDL_X11_XDBE                 OFF)
+  set(SDL_X11_XFIXES               OFF)
+  set(SDL_X11_XINPUT               OFF)
+  set(SDL_X11_XRANDR               OFF)
+  set(SDL_X11_XSCRNSAVER           OFF)
+  set(SDL_X11_XSHAPE               OFF)
+  set(SDL_X11_XSYNC                OFF)
+  set(SDL_X11_XTEST                OFF)
+
+  set(SDL_DBUS                     ON)
+  set(SDL_OPENGL                   ON)
+  set(SDL_OPENGLES                 ON)
+  set(SDL_PULSEAUDIO               ON)
+  set(SDL_PULSEAUDIO_SHARED        OFF)
+  set(SDL_WAYLAND                  ON)
+  set(SDL_WAYLAND_LIBDECOR         OFF)
+  set(SDL_WAYLAND_LIBDECOR_SHARED  OFF)
+  set(SDL_WAYLAND_SHARED           OFF)
+
+  #set(SDL_BACKGROUNDING_SIGNAL "SDL_EVENT_WINDOW_FOCUS_LOST")
+  #set(SDL_FOREGROUNDING_SIGNAL "SDL_EVENT_WINDOW_FOCUS_GAINED")
+
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)
+    cmake_host_system_information(RESULT OSNAME QUERY DISTRIB_NAME)
+    set(SDL_VENDOR_INFO "${OSNAME}")
+  else()
+    if(DEFINED ENV{NAME})
+      set(SDL_VENDOR_INFO "$ENV{NAME}")
+    endif()
+  endif()
+
+  if(SDL_WAYLAND_WL_SHELL)
+    sdl_compile_definitions(PRIVATE "SDL_WAYLAND_WL_SHELL")
+  endif()
 endif()
 
 if(NOT (SDL_SHARED OR SDL_STATIC))
@@ -1949,6 +2015,14 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
           sdl_include_directories(PRIVATE SYSTEM ${DBUS_INCLUDE_DIRS})
           # Fcitx need only dbus.
           set(HAVE_FCITX TRUE)
+          if (SAILFISHOS)
+            pkg_search_module(MALIIT maliit-glib)
+            if(MALIIT_FOUND)
+              set(HAVE_MALIIT TRUE)
+              message(CONFIGURE_LOG "FIXME: Maliit IME enabled, but not implemented!")
+              message(STATUS "FIXME: Maliit IME enabled, but not implemented!")
+            endif()
+          endif()
           set(HAVE_DBUS TRUE)
         endif()
       endif()
@@ -1963,7 +2037,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
         endif()
       endif()
 
-      if (HAVE_IBUS_IBUS_H OR HAVE_FCITX)
+      if (HAVE_IBUS_IBUS_H OR HAVE_FCITX OR HAVE_MALIIT)
         set(SDL_USE_IME 1)
       endif()
 
@@ -2116,7 +2190,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
 
   set(SDL_STORAGE_GENERIC 1)
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/storage/generic/*.c")
-  if(LINUX)
+  if(LINUX AND NOT SAILFISHOS)
     set(SDL_STORAGE_STEAM 1)
     sdl_glob_sources(
       "${SDL3_SOURCE_DIR}/src/storage/steam/*.c"
@@ -4351,6 +4425,13 @@ endif()
 
 ##### Fix Objective C builds #####
 string(APPEND CMAKE_OBJC_FLAGS " ${CMAKE_C_FLAGS}")
+
+if(SDL_WAYLAND_WL_SHELL)
+  message(WARNING "Building with wl_shell support. This may breake ABI/API compatability in places. Note that this is not supported by libsdl. Do not file upstream bug reports about this.")
+else()
+  message(WARNING "Without built-in wl_shell you will need to handle it in any applications manually, or use a Compositor with xdg_shell support.")
+endif()
+
 
 SDL_PrintSummary()
 debug_show_sdl_deps()
