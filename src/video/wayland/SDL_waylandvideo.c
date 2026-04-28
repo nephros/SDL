@@ -25,7 +25,9 @@
 
 #include "../../core/linux/SDL_system_theme.h"
 #include "../../core/linux/SDL_progressbar.h"
+#ifndef SDL_PLATFORM_SAILFISHOS
 #include "../../core/unix/SDL_gtk.h"
+#endif
 #include "../../events/SDL_events_c.h"
 
 #include "SDL_waylandclipboard.h"
