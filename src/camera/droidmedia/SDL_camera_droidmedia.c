@@ -61,6 +61,9 @@ typedef struct DroidFrame {
     SDL_Surface*          data;
     DroidMediaBufferInfo* info;
 
+    void*                 rawdata;
+    ssize_t               rawsize;
+
 } DroidFrame;
 
 struct SDL_PrivateCameraData
@@ -233,53 +236,34 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
         return SDL_CAMERA_FRAME_SKIP;
     }
 
-    if(info->stride == 0) {
+    if(device->hidden->frame->rawsize == 0) {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: size is 0, frame skipped");
+        return SDL_CAMERA_FRAME_SKIP;
+    }
+    if(info->stride == 0) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: stride is 0, frame skipped");
         return SDL_CAMERA_FRAME_SKIP;
     }
 #ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: got frame %ld/%lu, size/stride: %d",
                                            info->frame_number, info->timestamp, info->stride);
 #endif
-    frame->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), info->width * info->height);
+    //frame->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), info->width * info->height);
+    frame->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), device->hidden->frame->rawsize);
     if (frame->pixels) {
-        SDL_LockSurface(frame);
-        SDL_srand(*timestampNS);
-        /*
-        if (frame->format != device->actual_spec.format) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: Converting");
-            SDL_Surface* new = SDL_ConvertSurfaceAndColorspace(frame,
-                         device->actual_spec.format, NULL,
-                         SDL_COLORSPACE_YUV_DEFAULT, 0);
-            SDL_DestroySurface (frame);
-            frame = new;
-        }
-        */
+        SDL_memcpy(frame->pixels, device->hidden->frame->rawdata, device->hidden->frame->rawsize);
+        SDL_free(device->hidden->frame->rawdata);
+        device->hidden->frame->rawsize = 0;
 
-        SDL_UnlockSurface(frame); // can not blit to locked surface!
-                                  //
-        bool ok = false;
-        SDL_Surface* tmp = SDL_ConvertSurface(
-                device->hidden->frame->data,
-                frame->format);
-        ok = (tmp != NULL);
-        if(!ok) { SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: convert failed: %s", SDL_GetError()); }
-        else {
-            ok = SDL_BlitSurfaceScaled(tmp, NULL,
-                                  frame, NULL,
-                                  SDL_SCALEMODE_NEAREST);
-            if(!ok) { SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: blit failed: %s", SDL_GetError()); }
-        }
-
-        SDL_DestroySurface(tmp);
-
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: rendered image.");
         device->hidden->frameReady = false;
         DroidCam_setPreviewCallbacksEnabled(device, true);
 
-        if (!ok)
-            return SDL_CAMERA_FRAME_SKIP;
-
         frame->pitch = info->width; // pitch == width for YUV
+        if (!SDL_ISPIXELFORMAT_FOURCC(info->format)) {
+            frame->pitch *= SDL_BYTESPERPIXEL(info->format);
+        }
+
         frame_handled = info->frame_number;
         return SDL_CAMERA_FRAME_READY;
     }
@@ -741,46 +725,29 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
 
     SDL_Camera* device = (SDL_Camera*)data;
 
+    static int skipped = 0;
+
     if(device->hidden->frameReady == true) {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: last frame not processed, skipping");
+        skipped+=1;
+        if (skipped > 1000) {
+            SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: 1000 unprocessed frames, disabling fame callbacks.");
+            DroidCam_setPreviewCallbacksEnabled(device, false);
+        }
     } else {
+        skipped -= 1;
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: copying raw data");
+        DroidCam_setPreviewCallbacksEnabled(device, false);
+        device->hidden->frame->rawdata = SDL_malloc(mem->size);
+        SDL_memcpy(device->hidden->frame->rawdata, mem->data, mem->size);
+        device->hidden->frame->rawsize = mem->size;
+
         int width = device->actual_spec.width;
         int height = device->actual_spec.height;
         SDL_PixelFormat format = device->actual_spec.format;
         size_t pitch;
-        if(!SDL_CalculateYUVSize(format, width, height, NULL, &pitch));
-#ifdef DEBUG_CAMERA
-        const int32_t camformat = droid_media_camera_get_video_color_format (device->hidden->droidcam);
-        // expexted buffer size for YUV420p:
-        ssize_t expected_size = width*height
-                                + ( (width/2) * (height/2) *2);
+        if(!SDL_CalculateYUVSize(SDL_PIXELFORMAT_NV21, width, height, NULL, &pitch));
 
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: Camera reported format: %d (0x%x)", camformat, camformat);
-
-        if (expected_size != mem->size) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame buffersize %ld did not match expected %ld", mem->size, expected_size);
-        }
-#endif
-
-        /* from the docs:
-         * No copy is made of the pixel data. Pixel data is not managed
-         * automatically; you must free the surface before you free the pixel
-         * data.
-         * So, we create, duplicate, and delete.
-        */
-
-        SDL_Surface *tmp = SDL_CreateSurfaceFrom(width, height,
-                                                 format,
-                                                 mem->data,
-                                                 width); // pitch == width for YUV
-        device->hidden->frame->data = SDL_DuplicateSurface(tmp);
-        SDL_DestroySurface(tmp);
-
-        if (device->hidden->frame->data == NULL) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: Surface creation failed: %s",
-                                                  SDL_GetError());
-            return;
-        }
         // DroidMediaBufferInfo is actually for buffer callbacks.
         // But to be able to use the struct from both, fake it here:
         if (device->hidden->frame->info == NULL) {
@@ -791,11 +758,14 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
         device->hidden->frame->info->stride = pitch;
         device->hidden->frame->info->timestamp = SDL_GetTicksNS(); // oh well, close enough.
         device->hidden->frame->info->frame_number += 1;
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: prepared frame %ld, p %ld, fmt %s ",
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: prepared frame %ld, p %ld, s %ld, fmt %s ",
                                               device->hidden->frame->info->frame_number,
                                               pitch,
+                                              mem->size,
                                               SDL_GetPixelFormatName(format));
         device->hidden->frameReady = true;
+
+        return;
     }
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: << handlePreviewFrame");
 }
