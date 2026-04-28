@@ -32,6 +32,13 @@
 #define UnityLauncherAPI_DBUS_INTERFACE "com.canonical.Unity.LauncherEntry"
 #define UnityLauncherAPI_DBUS_SIGNAL    "Update"
 
+// Lipstick is the window manager on Sailfish OS:
+#define LipstickLauncherAPI_DBUS_NODE "com.jolla.lipstick"
+#define LipstickLauncherAPI_DBUS_PATH "/LauncherModel"
+#define LipstickLauncherAPI_DBUS_INTERFACE    "org.nemomobile.lipstick.LauncherModel"
+#define LipstickLauncherAPI_DBUS_METHOD_START "notifyLaunching"
+#define LipstickLauncherAPI_DBUS_METHOD_STOP  "cancelNotifyLaunching",
+
 static char *GetDBUSObjectPath(void)
 {
     char *app_id = SDL_strdup(SDL_GetAppID());
@@ -106,6 +113,26 @@ bool DBUS_ApplyWindowProgress(SDL_VideoDevice *_this, SDL_Window *window)
         return false;
     }
 
+#ifdef SDL_PLATFORM_SAILFISHOS
+//   NAME                                  TYPE      SIGNATURE RESULT/VALUE FLAGS
+//   org.nemomobile.lipstick.LauncherModel interface -         -            -
+//   .cancelNotifyLaunching                method    s         -            -
+//   .notifyLaunching                      method    s         -            -
+
+    char *desktop_path = GetAppDesktopPath();
+
+    if (!desktop_path) {
+        return false;
+    }
+
+    const int lipstick_progress_visible = ShouldShowProgress(window->progress_state);
+    SDL_DBus_CallVoidMethod(LipstickLauncherAPI_DBUS_NODE,
+                            LipstickLauncherAPI_DBUS_PATH,
+                            LipstickLauncherAPI_DBUS_INTERFACE,
+                            (lipstick_progress_visible ? LipstickLauncherAPI_DBUS_METHOD_START : LipstickLauncherAPI_DBUS_METHOD_STOP),
+                            DBUS_TYPE_STRING, desktop_path, DBUS_TYPE_INVALID);
+    SDL_free(desktop_path);
+#else
     char *objectPath = GetDBUSObjectPath();
     if (!objectPath) {
         return false;
@@ -156,7 +183,7 @@ bool DBUS_ApplyWindowProgress(SDL_VideoDevice *_this, SDL_Window *window)
     SDL_free(desktop_path);
     dbus->message_unref(msg);
     SDL_free(objectPath);
-
+#endif
     return true;
 }
 

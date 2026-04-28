@@ -30,7 +30,7 @@
 // this checks for HAVE_DBUS_DBUS_H internally.
 #include "core/linux/SDL_dbus.h"
 
-#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID)
+#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID) && !defined(SDL_PLATFORM_SAILFISHOS)
 #include "core/unix/SDL_gtk.h"
 #endif
 
@@ -714,7 +714,7 @@ void SDL_Quit(void)
     SDL_DBus_Quit();
 #endif
 
-#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID) && !defined(SDL_PLATFORM_EMSCRIPTEN) && !defined(SDL_PLATFORM_PRIVATE)
+#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID) && !defined(SDL_PLATFORM_EMSCRIPTEN) && !defined(SDL_PLATFORM_SAILFISHOS) && !defined(SDL_PLATFORM_PRIVATE)
     SDL_Gtk_Quit();
 #endif
 
@@ -835,6 +835,12 @@ bool SDL_IsTablet(void)
 #elif defined(SDL_PLATFORM_IOS)
     extern bool SDL_IsIPad(void);
     return SDL_IsIPad();
+#elif defined(SDL_PLATFORM_SAILFISHOS)
+#if !SDL_VERSION_ATLEAST(3, 5, 0)
+        return true;
+#else
+#error "Please implement SDL_IsPhone() for SDL_PLATFORM_SAILFISHOS and update SDL_IsTablet()"
+#endif // SDL < 3.5.0
 #else
     return false;
 #endif
@@ -864,6 +870,12 @@ static SDL_Sandbox SDL_DetectSandbox(void)
     if (SDL_getenv("SNAP") && SDL_getenv("SNAP_NAME") && SDL_getenv("SNAP_REVISION")) {
         return SDL_SANDBOX_SNAP;
     }
+
+#if defined(SDL_PLATFORM_SAILFISHOS)
+    if (access("/run/firejail/dbus/user", F_OK) == 0) {
+        return SDL_SANDBOX_SAILJAIL;
+    }
+#endif
 
     if (access("/run/host/container-manager", F_OK) == 0) {
         return SDL_SANDBOX_UNKNOWN_CONTAINER;
