@@ -831,6 +831,18 @@ const char *SDL_GetPlatform(void)
 #endif
 }
 
+bool SDL_IsPhone(void)
+{
+#if defined(SDL_PLATFORM_ANDROID) || \
+    defined(SDL_PLATFORM_SAILFISHOS) || \
+    (defined(SDL_PLATFORM_IOS) && !defined(SDL_PLATFORM_VISIONOS))
+    if (!SDL_IsTablet() && !SDL_IsTV()) {
+        return true;
+    }
+#endif
+    return false;
+}
+
 bool SDL_IsTablet(void)
 {
 #ifdef SDL_PLATFORM_ANDROID
@@ -838,6 +850,8 @@ bool SDL_IsTablet(void)
 #elif defined(SDL_PLATFORM_IOS)
     extern bool SDL_IsIPad(void);
     return SDL_IsIPad();
+#elif defined(SDL_PLATFORM_SAILFISHOS)
+    return SDL_IsSailfishOSTablet();
 #else
     return false;
 #endif

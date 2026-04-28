@@ -1877,6 +1877,13 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
     endif()
   endif()
 
+  if(SAILFISHOS)
+    sdl_glob_sources(
+      "${SDL3_SOURCE_DIR}/src/core/sailfishos/*.c"
+      "${SDL3_SOURCE_DIR}/src/core/sailfishos/*.h"
+    )
+  endif()
+
   if(SDL_AUDIO)
     if(NETBSD)
         set(SDL_AUDIO_DRIVER_NETBSD 1)
