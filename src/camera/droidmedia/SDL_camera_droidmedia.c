@@ -58,12 +58,9 @@ DroidMediaColourFormatConstants colorFormats;
 DroidMediaCameraConstants       cameraConstants;
 
 typedef struct DroidFrame {
-    SDL_Surface*          data;
     DroidMediaBufferInfo* info;
-
     void*                 rawdata;
     ssize_t               rawsize;
-
 } DroidFrame;
 
 struct SDL_PrivateCameraData
@@ -176,9 +173,9 @@ static void DROIDCAMERA_CloseDevice(SDL_Camera *device)
     SDL_DestroyProperties(*device->hidden->parameters);
     device->hidden->parameters = NULL;
 
-    if (device->hidden->frame->data != NULL) {
-        SDL_DestroySurface(device->hidden->frame->data);
-        device->hidden->frame->data = NULL;
+    if (device->hidden->frame->rawdata != NULL) {
+        SDL_free(device->hidden->frame->rawdata);
+        device->hidden->frame->rawdata = NULL;
     }
     if (device->hidden->frame->info != NULL) {
         SDL_free(device->hidden->frame->info);
@@ -738,6 +735,7 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
         skipped -= 1;
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: copying raw data");
         DroidCam_setPreviewCallbacksEnabled(device, false);
+
         device->hidden->frame->rawdata = SDL_malloc(mem->size);
         SDL_memcpy(device->hidden->frame->rawdata, mem->data, mem->size);
         device->hidden->frame->rawsize = mem->size;
@@ -812,43 +810,7 @@ static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf)
     SDL_PixelFormat pfx; SDL_Colorspace csp;
     DroidCam_camFormatToSDLFormats(info->format, &pfx, &csp);
 
-    if (device->hidden->frame->data != NULL) {
-        SDL_DestroySurface(device->hidden->frame->data);
-        device->hidden->frame->data = NULL;
-    }
-    /*
-    device->hidden->frame->data = SDL_CreateSurfaceFrom(info->width, info->height,
-                                             SDL_PIXELFORMAT_NV21,
-                                             buf,
-                                             pitch);
-    */
-    size_t spitch, ssize;
-    SDL_CalculateYUVSize(pfx, info->width, info->height, &ssize, &spitch);
-    size_t dpitch, dsize;
-    SDL_CalculateYUVSize(SDL_PIXELFORMAT_RGBA32, info->width, info->height, &dsize, &dpitch);
-    device->hidden->frame->data = SDL_CreateSurface(info->width, info->height, SDL_PIXELFORMAT_RGBA32);
-    SDL_ConvertPixels_YUV_to_RGB(info->width, info->height,
-                                  pfx, csp,
-                                  0, buf, spitch,
-                                  SDL_PIXELFORMAT_RGBA32, SDL_COLORSPACE_SRGB,
-                                  0, device->hidden->frame->data->pixels, dpitch);
-
-    if (device->hidden->frame->data == NULL) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handleBufferFrame: Surface creation failed: %s",
-                                              SDL_GetError());
-        return false;
-    } else {
-        SDL_srand(info->timestamp);
-        SDL_FillSurfaceRect(device->hidden->frame->data->pixels, NULL,
-                            SDL_MapSurfaceRGBA(device->hidden->frame->data->pixels,
-                                               SDL_rand(255), SDL_rand(255), SDL_rand(255), 255)
-                            );
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM,
-                     "DROIDCAMERA: handleBufferFrame: Created a surface for frame: N: %lu, t[ns]: %lu, %dx%d/%d, p: %lu",
-                     info->frame_number, info->timestamp, info->width, info->height, info->stride, spitch);
-        device->hidden->frameReady = true;
-    }
-
+    /* ... do something here... */
     droid_media_buffer_unlock(buf);
     droid_media_buffer_release(buf, NULL, NULL);
     droid_media_buffer_destroy(buf);
