@@ -257,26 +257,30 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
         */
 
         SDL_UnlockSurface(frame); // can not blit to locked surface!
+                                  //
         bool ok = false;
         SDL_Surface* tmp = SDL_ConvertSurface(
                 device->hidden->frame->data,
                 frame->format);
-        if(!ok) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: convert failed: %s", SDL_GetError());
-        }
-        ok = SDL_BlitSurfaceScaled(tmp, NULL,
-                              frame, NULL,
-                              SDL_SCALEMODE_NEAREST);
-        if(!ok) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: blit failed: %s", SDL_GetError());
+        ok = (tmp != NULL);
+        if(!ok) { SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: convert failed: %s", SDL_GetError()); }
+        else {
+            ok = SDL_BlitSurfaceScaled(tmp, NULL,
+                                  frame, NULL,
+                                  SDL_SCALEMODE_NEAREST);
+            if(!ok) { SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: blit failed: %s", SDL_GetError()); }
         }
 
-        frame->pitch = info->width; // pitch == width for YUV
         SDL_DestroySurface(tmp);
 
         device->hidden->frameReady = false;
-        frame_handled = info->frame_number;
         DroidCam_setPreviewCallbacksEnabled(device, true);
+
+        if (!ok)
+            return SDL_CAMERA_FRAME_SKIP;
+
+        frame->pitch = info->width; // pitch == width for YUV
+        frame_handled = info->frame_number;
         return SDL_CAMERA_FRAME_READY;
     }
 
@@ -746,15 +750,15 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
         size_t pitch;
         if(!SDL_CalculateYUVSize(format, width, height, NULL, &pitch));
 #ifdef DEBUG_CAMERA
-        int32_t camformat = droid_media_camera_get_video_color_format (device->hidden->droidcam);
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: Camera reported format: %d (0x%x)", camformat, camformat);
-
+        const int32_t camformat = droid_media_camera_get_video_color_format (device->hidden->droidcam);
         // expexted buffer size for YUV420p:
         ssize_t expected_size = width*height
-                             + ( (width/2) * (height/2) *2);
+                                + ( (width/2) * (height/2) *2);
+
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame: Camera reported format: %d (0x%x)", camformat, camformat);
 
         if (expected_size != mem->size) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame buffersize %ld did not match exopected %ld", mem->size, (int64_t)width*height);
+            SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: handlePreviewFrame buffersize %ld did not match expected %ld", mem->size, expected_size);
         }
 #endif
 
