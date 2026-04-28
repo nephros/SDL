@@ -804,8 +804,10 @@ handle_configure_wl_shell_surface(void *data, struct wl_shell_surface *shell_sur
     if(fullscreen)
         UpdateWindowFullscreen(window, fullscreen);
 
-    if(maximize)
+    if(maximize) {
+        wl_surface_commit(wind->surface);
         wl_shell_surface_set_maximized(shell_surface, NULL);
+    }
 
     ConfigureWindowGeometry(window);
 
