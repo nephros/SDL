@@ -411,10 +411,6 @@ if(EMSCRIPTEN)
   option_string(SDL_EMSCRIPTEN_PERSISTENT_PATH  "Path to mount Emscripten IDBFS at startup or '' to disable" "")
 endif()
 
-if(SAILFISHOS)
-  option(SDL_WAYLAND_WL_SHELL "Enable deprecated Wayland wl_shell support" OFF)
-endif()
-
 set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_REVISION")
 
 cmake_dependent_option(SDL_SHARED "Build a shared version of the library" ${SDL_SHARED_DEFAULT} ${SDL_SHARED_AVAILABLE} OFF)
@@ -490,6 +486,8 @@ if (SAILFISHOS)
       set(SDL_VENDOR_INFO "$ENV{NAME}")
     endif()
   endif()
+
+  option(SDL_WAYLAND_WL_SHELL "Enable deprecated Wayland wl_shell support" OFF)
 
   if(SDL_WAYLAND_WL_SHELL)
     sdl_compile_definitions(PRIVATE "SDL_WAYLAND_WL_SHELL")
@@ -4427,9 +4425,9 @@ endif()
 string(APPEND CMAKE_OBJC_FLAGS " ${CMAKE_C_FLAGS}")
 
 if(SDL_WAYLAND_WL_SHELL)
-  message(WARNING "Building with wl_shell support. This may breake ABI/API compatability in places. Note that this is not supported by libsdl. Do not file upstream bug reports about this.")
+  message(WARNING "Building with wl_shell support. This is not supported by libsdl. Do not file upstream bug reports about this.")
 else()
-  message(WARNING "Without built-in wl_shell you will need to handle it in any applications manually, or use a Compositor with xdg_shell support.")
+  message(WARNING "Without built-in wl_shell you will need to handle it in any applications manually, or use a compositor with xdg_shell support.")
 endif()
 
 
