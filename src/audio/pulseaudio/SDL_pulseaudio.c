@@ -365,6 +365,16 @@ static bool ConnectToPulseServer(void)
         icon_name = "applications-games";
     }
     PULSEAUDIO_pa_proplist_sets(proplist, PA_PROP_APPLICATION_ICON_NAME, icon_name);
+#ifdef SDL_PLATFORM_SAILFISHOS
+    // re-use the hint from pipewire.
+    // if unset, use a Sailfish OS specific magic value, "x-maemo".
+    // if the role is not that, the OS will output audio at full volume,
+    // and offer no way to control it via mixer
+    const char role = SDL_GetHint(SDL_HINT_AUDIO_DEVICE_STREAM_ROLE);
+    if (role == NULL)
+        role = "x-maemo";
+    PULSEAUDIO_pa_proplist_sets(proplist, PA_PROP_MEDIA_ROLE, role);
+#endif
 
     pulseaudio_context = PULSEAUDIO_pa_context_new_with_proplist(mainloop_api, getAppName(), proplist);
     if (!pulseaudio_context) {
