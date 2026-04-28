@@ -871,6 +871,12 @@ static SDL_Sandbox SDL_DetectSandbox(void)
         return SDL_SANDBOX_SNAP;
     }
 
+#if defined(SDL_PLATFORM_SAILFISHOS)
+    if (access("/run/firejail/dbus/user", F_OK) == 0) {
+        return SDL_SANDBOX_SAILJAIL;
+    }
+#endif
+
     if (access("/run/host/container-manager", F_OK) == 0) {
         return SDL_SANDBOX_UNKNOWN_CONTAINER;
     }
