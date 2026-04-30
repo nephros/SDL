@@ -710,6 +710,11 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
                           VIDEO_DEVICE_CAPS_SENDS_DISPLAY_CHANGES |
                           VIDEO_DEVICE_CAPS_SENDS_HDR_CHANGES;
 
+#ifdef SDL_PLATFORM_SAILFISHOS
+    device->device_caps |= VIDEO_DEVICE_CAPS_FULLSCREEN_ONLY;
+//    device->device_caps &= ~VIDEO_DEVICE_CAPS_HAS_POPUP_WINDOW_SUPPORT;
+#endif
+
     return device;
 }
 
