@@ -66,7 +66,7 @@ typedef struct DroidFrame {
 struct SDL_PrivateCameraData
 {
   DroidMediaCamera*      droidcam;
-  SDL_PropertiesID*      parameters;
+  SDL_PropertiesID       parameters;
 
   DroidFrame*            frame;
   bool                   frameReady;
@@ -115,7 +115,7 @@ static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spe
 
     DroidCam_fillCamParameters(device);
 
-    SDL_LockProperties(*device->hidden->parameters);
+    SDL_LockProperties(device->hidden->parameters);
     DroidCam_setCamParameter(device, KEY_PARAM_PREVIEW_FMT, "yuv420p");
     DroidCam_setCamParameter(device, KEY_PARAM_PREVIEW_FRAMERATE, rate_s);
 //    DroidCam_setCamParameter(device, KEY_PARAM_VIDEO_SIZE, res);
@@ -131,10 +131,10 @@ static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spe
     //const char* video_size  = DroidCam_getCamParameter(cam, KEY_PARAM_VIDEO_SIZE);
 
     // FIXME: we should do that in a custom method probably...
-    SDL_SetStringProperty(*device->hidden->parameters, KEY_PARAM_PREVIEW_FRAMERATE, framerate );
-    SDL_SetStringProperty(*device->hidden->parameters, "preview-size", preview_size );
+    SDL_SetStringProperty(device->hidden->parameters, KEY_PARAM_PREVIEW_FRAMERATE, framerate );
+    SDL_SetStringProperty(device->hidden->parameters, "preview-size", preview_size );
 
-    SDL_UnlockProperties(*device->hidden->parameters);
+    SDL_UnlockProperties(device->hidden->parameters);
 
     int32_t camfmt = droid_media_camera_get_video_color_format (cam);
     SDL_PixelFormat pixelformat; //= SDL_PIXELFORMAT_UNKNOWN;
@@ -170,7 +170,7 @@ static void DROIDCAMERA_CloseDevice(SDL_Camera *device)
     droid_media_camera_disconnect((DroidMediaCamera*)device->hidden->droidcam);
     device->hidden->droidcam = NULL;
 
-    SDL_DestroyProperties(*device->hidden->parameters);
+    SDL_DestroyProperties(device->hidden->parameters);
     device->hidden->parameters = NULL;
 
     if (device->hidden->frame->rawdata != NULL) {
@@ -378,7 +378,7 @@ static const char* buildParameterString(const SDL_PropertiesID props)
 
 static bool DroidCam_commitCamParameters(SDL_Camera* device)
 {
-    SDL_PropertiesID props = *device->hidden->parameters;
+    SDL_PropertiesID props = device->hidden->parameters;
     const char* finalprops = buildParameterString(props);
 #if DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Final camera parameters: %s", finalprops);
@@ -389,13 +389,20 @@ static bool DroidCam_commitCamParameters(SDL_Camera* device)
 static bool DroidCam_setCamParameter(SDL_Camera* device, const char* key, const char* value)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Setting camera parameter: %s=%s", key, value);
-    SDL_PropertiesID props = *device->hidden->parameters;
+    SDL_PropertiesID props = device->hidden->parameters;
+    if(    (SDL_endswith(key, "-values"))
+        || (SDL_endswith(key, "-supported"))
+        || (SDL_startswith(key, "max-"))
+        ) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "Read-only Parameter: %s, ignored!", key);
+        return false;
+    }
     if (!SDL_HasProperty(props, key)) {
         SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "Unknown Parameter: %s, ignored!", key);
         return false;
     }
     SDL_SetStringProperty(props, key, value);
-    device->hidden->parameters = &props;
+    device->hidden->parameters = props;
     return true;
 }
 
@@ -430,7 +437,7 @@ static void DroidCam_fillCamParameters(SDL_Camera* device)
             numparm++;
         }
     }
-    device->hidden->parameters = &props;
+    device->hidden->parameters = props;
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Camera reported %u parameters.", numparm);
 }
 
