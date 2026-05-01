@@ -213,14 +213,7 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
     DroidMediaBufferInfo* info = device->hidden->frame->info;
     *timestampNS = info->timestamp;
     *rotation = 90;
-    static uint64_t frame_handled = 0;
     static SDL_Time stamp_handled = 0;
-
-    if((frame_handled > 0) && (frame_handled >= info->frame_number) ) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: frame %ld already handled.", info->frame_number);
-        device->hidden->frameReady = false;
-        return SDL_CAMERA_FRAME_SKIP;
-    }
 
     if((stamp_handled > 0) && (stamp_handled >= info->timestamp) ) {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: timestamp already handled.");
@@ -261,7 +254,6 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
             frame->pitch *= SDL_BYTESPERPIXEL(info->format);
         }
 
-        frame_handled = info->frame_number;
         return SDL_CAMERA_FRAME_READY;
     }
 
