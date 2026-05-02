@@ -529,12 +529,12 @@ static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL
     } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420SemiPlanar) { pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_YUV_DEFAULT;
     } else if(fmt == colorFormats.OMX_COLOR_FormatYUV422SemiPlanar) { pxf = SDL_PIXELFORMAT_YUY2; csp = SDL_COLORSPACE_YUV_DEFAULT;
     } else if(fmt == 0x7F000789) {
-        SDL_PixelFormat hintformat = (SDL_PixelFormat) SDL_GetHint(SDL_HINT_DROIDCAMERA_PIXELFORMAT);
+        SDL_PixelFormat *hintformat = (SDL_PixelFormat*) SDL_GetHint(SDL_HINT_DROIDCAMERA_PIXELFORMAT);
         if (hintformat == NULL) {
             pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_BT709_LIMITED;
         } else {
-            pxf = hintformat;
-            if(SDL_ISPIXELFORMAT_FOURCC(hintformat)) {
+            pxf = *hintformat;
+            if(SDL_ISPIXELFORMAT_FOURCC(*hintformat)) {
               csp = SDL_COLORSPACE_BT709_LIMITED;
             } else {
               csp = SDL_COLORSPACE_RGB_DEFAULT;
