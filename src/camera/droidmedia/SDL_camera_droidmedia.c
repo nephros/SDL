@@ -141,16 +141,16 @@ static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spe
     SDL_UnlockProperties(device->hidden->parameters);
 
     int32_t camfmt = droid_media_camera_get_video_color_format (cam);
-    SDL_PixelFormat pixelformat; //= SDL_PIXELFORMAT_UNKNOWN;
-    SDL_Colorspace colorspace; // = SDL_COLORSPACE_UNKNOWN;
+    SDL_PixelFormat pixelformat;
+    SDL_Colorspace colorspace;
     DroidCam_camFormatToSDLFormats(camfmt, &pixelformat, &colorspace);
-    Uint32 w, h;
-    SDL_sscanf(preview_size, "%ux%u", &w, &h);
     device->actual_spec.format = pixelformat;
-    device->actual_spec.width = w;
-    device->actual_spec.height = h;
-    device->actual_spec.framerate_numerator = SDL_atoi(framerate);
-    device->actual_spec.framerate_denominator = 1;
+    SDL_sscanf(preview_size, "%ux%u",
+        &device->actual_spec.width,
+        &device->actual_spec.height);
+    SDL_CalculateFraction(SDL_atoi(framerate),
+        &device->actual_spec.framerate_numerator,
+        &device->actual_spec.framerate_denominator);
 
 
     if(!droid_media_camera_start_preview(cam)) {
