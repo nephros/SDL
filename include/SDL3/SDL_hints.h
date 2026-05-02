@@ -4763,6 +4763,15 @@ extern "C" {
 #define SDL_HINT_PEN_TOUCH_EVENTS "SDL_PEN_TOUCH_EVENTS"
 
 /**
+ * A variable specifying the pixel format for droidmedia camera frames.
+ *
+ * \sa SDL_PixelFormat
+ *
+ * \since This hint is available since SDL 3.4.4
+ */
+#define SDL_HINT_DROIDCAMERA_PIXELFORMAT "SDL_DROIDCAMERA_PIXELFORMAT"
+
+/**
  * An enumeration of hint priorities.
  *
  * \since This enum is available since SDL 3.2.0.

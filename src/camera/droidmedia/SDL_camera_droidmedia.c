@@ -532,10 +532,18 @@ static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL
     } else if(fmt == colorFormats.OMX_COLOR_FormatYCbYCr)           { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
     } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420SemiPlanar) { pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_YUV_DEFAULT;
     } else if(fmt == colorFormats.OMX_COLOR_FormatYUV422SemiPlanar) { pxf = SDL_PIXELFORMAT_YUY2; csp = SDL_COLORSPACE_YUV_DEFAULT;
-//    } else if(fmt == 0x7F000789) { pxf = SDL_PIXELFORMAT_EXTERNAL_OES; csp = SDL_COLORSPACE_YUV_DEFAULT;
-//    } else if(fmt == 0x7F000789) { pxf = SDL_PIXELFORMAT_IYUV; csp = SDL_COLORSPACE_BT709_LIMITED;
-    } else if(fmt == 0x7F000789) { pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_BT709_LIMITED;
-//    } else if(fmt == 0x7F000789) { pxf = SDL_PIXELFORMAT_CUSTOM; csp = SDL_COLORSPACE_BT709_LIMITED;
+    } else if(fmt == 0x7F000789) {
+        SDL_PixelFormat hintformat = (SDL_PixelFormat) SDL_GetHint(SDL_HINT_DROIDCAMERA_PIXELFORMAT);
+        if (hintformat == NULL) {
+            pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_BT709_LIMITED;
+        } else {
+            pxf = hintformat;
+            if(SDL_ISPIXELFORMAT_FOURCC(hintformat)) {
+              csp = SDL_COLORSPACE_BT709_LIMITED;
+            } else {
+              csp = SDL_COLORSPACE_RGB_DEFAULT;
+            }
+        }
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Did not find format, returning default.");
     }
