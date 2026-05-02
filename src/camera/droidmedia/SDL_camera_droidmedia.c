@@ -102,7 +102,6 @@ static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spe
     device->hidden->frameReady = false;
 
     if (!droid_media_camera_lock (cam)) {
-        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "Could not lock camera, disconnecting!");
         droid_media_camera_disconnect (cam);
         device->hidden->droidcam = NULL;
         return SDL_SetError("Could not lock camera, disconnected!");
@@ -169,7 +168,9 @@ static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spe
 
 static void DROIDCAMERA_CloseDevice(SDL_Camera *device)
 {
+#ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: CloseDevice");
+#endif
     if(!device) return;
 
     if(device->hidden) {
@@ -200,7 +201,9 @@ static void DROIDCAMERA_CloseDevice(SDL_Camera *device)
 
 static bool DROIDCAMERA_WaitDevice(SDL_Camera *device)
 {
+#ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: WaitDevice");
+#endif
     const double duration = ((double) device->actual_spec.framerate_denominator / ((double) device->actual_spec.framerate_numerator));
     while (!SDL_GetAtomicInt(&device->shutdown)) {
         SDL_Delay((Uint32) (duration * 1000.0));
@@ -216,42 +219,31 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
                                                       Uint64 *timestampNS,
                                                       float *rotation)
 {
+#ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: AcquireFrame");
+#endif
 
-    if (!device->hidden->frameReady) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: No Frame available");
-        return SDL_CAMERA_FRAME_SKIP;
-    }
     DroidMediaBufferInfo* info = device->hidden->frame->info;
     *timestampNS = info->timestamp;
-    *rotation = 90;
-    static SDL_Time stamp_handled = 0;
-
-    if((stamp_handled > 0) && (stamp_handled >= info->timestamp) ) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: timestamp already handled.");
-        device->hidden->frameReady = false;
-        return SDL_CAMERA_FRAME_SKIP;
-    }
-
-    if(device->hidden->frame->format != frame->format) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: format mismatch!");
-    }
+    *rotation = 90; //FIXME
 
     frame->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), device->hidden->frame->rawsize);
     if (frame->pixels) {
         SDL_memcpy(frame->pixels, device->hidden->frame->rawdata, device->hidden->frame->rawsize);
+        SDL_free(device->hidden->frame->rawdata);
         frame->pitch = info->stride;
         frame->w = info->width;
         frame->h = info->height;
-        SDL_free(device->hidden->frame->rawdata);
         device->hidden->frame->rawdata = NULL;
         device->hidden->frame->rawsize = 0;
+        device->hidden->frameReady = false;
+        DroidCam_setPreviewCallbacksEnabled(device, true);
 
+#ifdef DEBUG_CAMERA
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Acquire: Frame copied %dx%d, fmt %s",
                                                 frame->w, frame->h,
                                               SDL_GetPixelFormatName(frame->format));
-        device->hidden->frameReady = false;
-        DroidCam_setPreviewCallbacksEnabled(device, true);
+#endif
         return SDL_CAMERA_FRAME_READY;
     }
 
@@ -261,13 +253,17 @@ static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
 static void DROIDCAMERA_ReleaseFrame(SDL_Camera *device, SDL_Surface *frame)
 {
 LOCAL_UNUSED(device);
+#ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: ReleaseFrame");
+#endif
     SDL_aligned_free(frame->pixels);
 }
 
 static void DROIDCAMERA_DetectDevices(void)
 {
+#ifdef DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: DetectDevices");
+#endif
 
     int num_cameras = droid_media_camera_get_number_of_cameras();
     if (num_cameras == 0) {
@@ -547,23 +543,6 @@ static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Did not find format, returning default.");
     }
-/* from DroidMediaColourFormatConstants
-    QOMX_COLOR_FormatYUV420PackedSemiPlanar32m;
-    QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka;
-    OMX_COLOR_FormatYUV420Planar;
-    OMX_COLOR_FormatYUV420PackedPlanar;
-    OMX_COLOR_FormatYUV420SemiPlanar;
-    OMX_COLOR_FormatYUV422SemiPlanar;
-    OMX_COLOR_FormatL8;
-    OMX_COLOR_FormatYCbYCr;
-    OMX_COLOR_FormatYCrYCb;
-    OMX_COLOR_FormatCbYCrY;
-    OMX_COLOR_Format32bitARGB8888;
-    OMX_COLOR_Format32bitBGRA8888;
-    OMX_COLOR_Format16bitRGB565;
-    OMX_COLOR_Format16bitBGR565;
-    OMX_COLOR_FormatYUV420Flexible;
-*/
     *format = pxf;
     *colorspace = csp;
 #ifdef DEBUG_CAMERA
