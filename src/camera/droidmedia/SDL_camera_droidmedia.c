@@ -706,8 +706,6 @@ LOCAL_UNUSED(mem);
 
 static void DroidCam_handlePostviewFrame(void *data, DroidMediaData *mem)
 {
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: << handlePostviewFrame");
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: delegating to other handler:");
     DroidCam_handlePreviewFrame(data, mem);
 }
 
@@ -788,7 +786,6 @@ static void DroidCam_handlePreviewFrame(void *data, DroidMediaData *mem)
                                               SDL_GetPixelFormatName(format));
 #endif
     }
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: << handlePreviewFrame");
 }
 
 /* a taken picture, jpeg format */
