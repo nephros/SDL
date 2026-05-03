@@ -47,6 +47,7 @@
 #define KEY_PARAM_VIDEO_SIZES_LIST   "preview-size-values"
 #define KEY_PARAM_VIDEO_SIZE         "video-size"
 #define KEY_PARAM_FRAME_FORMAT       "video-frame-format"
+#define KEY_PARAM_FOCAL_LENGTH       "focal-length"
 
 #ifndef SDL_HAVE_YUV
 #pragma message ( "SDL_HAVE_YUV is not defined. This would be useful to have!" )
@@ -497,6 +498,11 @@ static void DROIDCAMERA_DetectDevices(void)
         }
 
         SDL_CameraPosition position = DroidCam_camPositionToSDLPosition(info.facing);
+
+        char* focal_length = DroidCam_getCamParameter(cam, KEY_PARAM_FOCAL_LENGTH);
+        float fl;
+        SDL_sscanf(focal_length, "%f", &fl);
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Focal langth: %f", fl);
 
         char fullname[24];
         SDL_snprintf(fullname, sizeof(fullname),"Droidmedia Camera %d", num);
