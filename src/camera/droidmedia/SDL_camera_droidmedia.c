@@ -58,19 +58,9 @@ extern bool SDL_CalculateYUVSize(SDL_PixelFormat format, int w, int h, size_t *s
 
 // helpers
 static CameraFormatAddData DroidCam_camParametersToSDLCaminfo(DroidMediaCamera *camera);
-
-static bool initDroid();
-static void DroidCam_setupCallbacks(SDL_Camera* device);
-static void DroidCam_setPreviewCallbacksEnabled(SDL_Camera* device, bool);
-
-
 static void DroidCam_fillCamParameters(SDL_Camera* device);
 static char* DroidCam_getCamParameter(DroidMediaCamera* camera, const char* key);
 static bool DroidCam_setCamParameter(SDL_Camera* device, const char* key, const char* value);
-
-static SDL_CameraPosition DroidCam_camPositionToSDLPosition(int facing);
-static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL_Colorspace *colorspace);
-
 // callbacks for droidmedia
 static void DroidCam_handleShutter(void* data);
 static void DroidCam_handleFocus(void* data, int);
@@ -86,19 +76,21 @@ static void DroidCam_handleRawImage(void *data, DroidMediaData *mem);
 static void DroidCam_handlePreviewMeta(void *data, const DroidMediaCameraFace *faces, size_t num_faces);
 static void DroidCam_handleRawImageNotify(void* data);
 
-static bool DroidCam_handleBufferCreated(void *data, DroidMediaBuffer *buf);
-static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf);
-static void DroidCam_handleBuffersReleased(void *data);
+/*
+   static bool DroidCam_handleBufferCreated(void *data, DroidMediaBuffer *buf);
+   static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf);
+   static void DroidCam_handleBuffersReleased(void *data);
+   */
 
 DroidMediaPixelFormatConstants  pixelFormats;
 DroidMediaColourFormatConstants colorFormats;
 DroidMediaCameraConstants       cameraConstants;
 
 typedef struct DroidFrame {
-    DroidMediaBufferInfo* info;
-    unsigned char*        rawdata;
-    size_t                rawsize;
-    SDL_PixelFormat       format;
+  DroidMediaBufferInfo* info;
+  unsigned char*        rawdata;
+  size_t                rawsize;
+  SDL_PixelFormat       format;
 
 } DroidFrame;
 
@@ -110,6 +102,193 @@ struct SDL_PrivateCameraData
   DroidFrame*            frame;
   bool                   frameReady;
 };
+
+static bool initDroid()
+{
+  if(!droid_media_init()) {
+	SDL_SetError("Could not initialize droidmedia!");
+	return false;
+  }
+
+  droid_media_pixel_format_constants_init(&pixelFormats);
+  droid_media_camera_constants_init(&cameraConstants);
+  droid_media_colour_format_constants_init(&colorFormats);
+#if DEBUG_CAMERA
+  SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Pixel Formats:\n\n\
+	  %d: HAL_PIXEL_FORMAT_RGBA_8888\n\
+	  %d: HAL_PIXEL_FORMAT_RGBX_8888\n\
+	  %d: HAL_PIXEL_FORMAT_RGB_888\n\
+	  %d: HAL_PIXEL_FORMAT_RGB_565\n\
+	  %d: HAL_PIXEL_FORMAT_BGRA_8888\n\
+	  %d: HAL_PIXEL_FORMAT_YV12\n\
+	  %d: HAL_PIXEL_FORMAT_RAW_SENSOR\n\
+	  %d: HAL_PIXEL_FORMAT_YCrCb_420_SP\n\
+	  %d: HAL_PIXEL_FORMAT_YCbCr_422_SP\n\
+	  %d: HAL_PIXEL_FORMAT_YCbCr_422_I\n\
+	  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
+	  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\n\
+	  ",
+	  pixelFormats.HAL_PIXEL_FORMAT_RGBA_8888,
+	  pixelFormats.HAL_PIXEL_FORMAT_RGBX_8888,
+	  pixelFormats.HAL_PIXEL_FORMAT_RGB_888,
+	  pixelFormats.HAL_PIXEL_FORMAT_RGB_565,
+	  pixelFormats.HAL_PIXEL_FORMAT_BGRA_8888,
+	  pixelFormats.HAL_PIXEL_FORMAT_YV12,
+	  pixelFormats.HAL_PIXEL_FORMAT_RAW_SENSOR,
+	  pixelFormats.HAL_PIXEL_FORMAT_YCrCb_420_SP,
+	  pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_SP,
+	  pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_I,
+	  pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m,
+	  pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka
+		);
+
+  SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Color Formats:\n\n\
+	  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
+	  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\
+	  %d: OMX_COLOR_FormatYUV420Planar\n\
+	  %d: OMX_COLOR_FormatYUV420PackedPlanar\n\
+	  %d: OMX_COLOR_FormatYUV420SemiPlanar\n\
+	  %d: OMX_COLOR_FormatYUV422SemiPlanar\n\
+	  %d: OMX_COLOR_FormatL8\n\
+	  %d: OMX_COLOR_FormatYCbYCr\n\
+	  %d: OMX_COLOR_FormatYCrYCb\n\
+	  %d: OMX_COLOR_FormatCbYCrY\n\
+	  %d: OMX_COLOR_Format32bitARGB8888\n\
+	  %d: OMX_COLOR_Format32bitBGRA8888\n\
+	  %d: OMX_COLOR_Format16bitRGB565\n\
+	  %d: OMX_COLOR_Format16bitBGR565\n\
+	  ",
+	  colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m,
+	  colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka,
+	  colorFormats.OMX_COLOR_FormatYUV420Planar,
+	  colorFormats.OMX_COLOR_FormatYUV420PackedPlanar,
+	  colorFormats.OMX_COLOR_FormatYUV420SemiPlanar,
+	  colorFormats.OMX_COLOR_FormatYUV422SemiPlanar,
+	  colorFormats.OMX_COLOR_FormatL8,
+	  colorFormats.OMX_COLOR_FormatYCbYCr,
+	  colorFormats.OMX_COLOR_FormatYCrYCb,
+	  colorFormats.OMX_COLOR_FormatCbYCrY,
+	  colorFormats.OMX_COLOR_Format32bitARGB8888,
+	  colorFormats.OMX_COLOR_Format32bitBGRA8888,
+	  colorFormats.OMX_COLOR_Format16bitRGB565,
+	  colorFormats.OMX_COLOR_Format16bitBGR565
+		);
+#endif
+  return true;
+}
+
+static void DroidCam_setPreviewCallbacksEnabled(SDL_Camera *device, bool enable)
+{
+#if DEBUG_CAMERA
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> Preview callbacks %s.", enable ? "enabled" : "disabled");
+#endif
+        int cbflag = enable
+                   ? cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_CAMERA
+                   //? cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_CAMCORDER
+                   : cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_NOOP;
+        droid_media_camera_set_preview_callback_flags(device->hidden->droidcam, cbflag);
+        droid_media_camera_send_command(device->hidden->droidcam, cameraConstants.CAMERA_CMD_PING, 0, 0);
+}
+
+static SDL_CameraPosition DroidCam_camPositionToSDLPosition(int facing)
+{
+    if (facing == DROID_MEDIA_CAMERA_FACING_FRONT) { return SDL_CAMERA_POSITION_FRONT_FACING; }
+    else if (facing == DROID_MEDIA_CAMERA_FACING_BACK) { return SDL_CAMERA_POSITION_BACK_FACING; }
+    return SDL_CAMERA_POSITION_UNKNOWN;
+}
+
+
+static void DroidCam_setupCallbacks(SDL_Camera* device)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Setting up callbacks");
+    {
+        DroidMediaCameraCallbacks cb;
+        cb.shutter_cb = DroidCam_handleShutter;
+        cb.focus_cb = DroidCam_handleFocus;
+        cb.focus_move_cb = DroidCam_handleFocusMove;
+        cb.error_cb = DroidCam_handleError;
+        cb.zoom_cb =   DroidCam_handleZoom;
+
+        cb.raw_image_cb = DroidCam_handleRawImage;
+        cb.compressed_image_cb =  DroidCam_handleCompressedImage;
+        cb.postview_frame_cb = DroidCam_handlePostviewFrame;
+        cb.raw_image_notify_cb = DroidCam_handleRawImageNotify;
+        cb.preview_frame_cb = DroidCam_handlePreviewFrame;
+
+        cb.preview_metadata_cb = DroidCam_handlePreviewMeta;
+        cb.video_frame_cb = DroidCam_handleVideoFrame;
+
+        droid_media_camera_set_callbacks(device->hidden->droidcam, &cb, device );
+
+        DroidCam_setPreviewCallbacksEnabled(device, true);
+    }
+/*
+    {
+        DroidMediaBufferQueueCallbacks cb;
+        DroidMediaBufferQueue* queue = droid_media_camera_get_buffer_queue (device->hidden->droidcam);
+
+        cb.buffers_released = DroidCam_handleBuffersReleased;
+        cb.frame_available = DroidCam_handleBufferFrame;
+        cb.buffer_created = DroidCam_handleBufferCreated;
+
+        droid_media_buffer_queue_set_callbacks (queue, &cb, device);
+    }
+*/
+}
+
+static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL_Colorspace *colorspace)
+{
+    SDL_PixelFormat pxf = SDL_PIXELFORMAT_YV12;
+    SDL_Colorspace csp  = SDL_COLORSPACE_BT709_LIMITED;
+    if       (fmt == pixelFormats.HAL_PIXEL_FORMAT_YV12)        { pxf = SDL_PIXELFORMAT_YV12;     csp = SDL_COLORSPACE_BT709_LIMITED;
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGB_565)     { pxf = SDL_PIXELFORMAT_RGB565;   csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGB_888)     { pxf = SDL_PIXELFORMAT_XRGB32;   csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGBA_8888)   { pxf = SDL_PIXELFORMAT_RGBA32;   csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGBX_8888)   { pxf = SDL_PIXELFORMAT_RGBX32;   csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_BGRA_8888)   { pxf = SDL_PIXELFORMAT_BGRA32;   csp = SDL_COLORSPACE_SRGB;
+    // FIXME: are these correct?
+    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_YCrCb_420_SP)  { pxf = SDL_PIXELFORMAT_NV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_SP) { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_I)  { pxf = SDL_PIXELFORMAT_UYVY; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    // https://developer.android.com/reference/android/graphics/ImageFormat#RAW_SENSOR
+    // a single-channel Bayer-mosaic image. Each pixel color sample is stored with 16 bits of precision.
+    // } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_RAW_SENSOR
+    // FIXME: what to use here?
+    } else if (fmt == pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m)            { pxf = SDL_PIXELFORMAT_EXTERNAL_OES; csp = SDL_COLORSPACE_BT601_LIMITED;
+    } else if (fmt == pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka) { pxf = SDL_PIXELFORMAT_EXTERNAL_OES; csp = SDL_COLORSPACE_BT601_LIMITED;
+    // from DroidMediaColourFormatConstants
+    } else if(fmt == colorFormats.OMX_COLOR_Format32bitARGB8888)    { pxf = SDL_PIXELFORMAT_ARGB32; csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == colorFormats.OMX_COLOR_Format32bitBGRA8888)    { pxf = SDL_PIXELFORMAT_BGRA32; csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == colorFormats.OMX_COLOR_Format16bitRGB565)      { pxf = SDL_PIXELFORMAT_RGB565; csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == colorFormats.OMX_COLOR_Format16bitBGR565)      { pxf = SDL_PIXELFORMAT_BGR565; csp = SDL_COLORSPACE_SRGB;
+    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420Planar)     { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
+//    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420Flexible)   { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if(fmt == colorFormats.OMX_COLOR_FormatYCbYCr)           { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420SemiPlanar) { pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV422SemiPlanar) { pxf = SDL_PIXELFORMAT_YUY2; csp = SDL_COLORSPACE_YUV_DEFAULT;
+    } else if(fmt == 0x7F000789) {
+        SDL_PixelFormat *hintformat = (SDL_PixelFormat*) SDL_GetHint(SDL_HINT_DROIDCAMERA_PIXELFORMAT);
+        if (hintformat == NULL) {
+            pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_BT709_LIMITED;
+        } else {
+            pxf = *hintformat;
+            if(SDL_ISPIXELFORMAT_FOURCC(*hintformat)) {
+              csp = SDL_COLORSPACE_BT709_LIMITED;
+            } else {
+              csp = SDL_COLORSPACE_RGB_DEFAULT;
+            }
+        }
+    } else {
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Did not find format, returning default.");
+    }
+    *format = pxf;
+    *colorspace = csp;
+#ifdef DEBUG_CAMERA
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Looked up format: %u (0x%x), returning %s", fmt, fmt, SDL_GetPixelFormatName(pxf));
+#endif
+}
+
+
 
 static bool DROIDCAMERA_OpenDevice(SDL_Camera *device, const SDL_CameraSpec *spec)
 {
@@ -245,6 +424,7 @@ static bool DROIDCAMERA_WaitDevice(SDL_Camera *device)
     }
     return true;
 }
+
 
 static SDL_CameraFrameResult DROIDCAMERA_AcquireFrame(SDL_Camera *device,
                                                       SDL_Surface *frame,
@@ -506,178 +686,6 @@ static CameraFormatAddData DroidCam_camParametersToSDLCaminfo(DroidMediaCamera *
     }
     return data;
 }
-
-static void DroidCam_camFormatToSDLFormats(int fmt, SDL_PixelFormat *format, SDL_Colorspace *colorspace)
-{
-    SDL_PixelFormat pxf = SDL_PIXELFORMAT_YV12;
-    SDL_Colorspace csp  = SDL_COLORSPACE_BT709_LIMITED;
-    if       (fmt == pixelFormats.HAL_PIXEL_FORMAT_YV12)        { pxf = SDL_PIXELFORMAT_YV12;     csp = SDL_COLORSPACE_BT709_LIMITED;
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGB_565)     { pxf = SDL_PIXELFORMAT_RGB565;   csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGB_888)     { pxf = SDL_PIXELFORMAT_XRGB32;   csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGBA_8888)   { pxf = SDL_PIXELFORMAT_RGBA32;   csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_RGBX_8888)   { pxf = SDL_PIXELFORMAT_RGBX32;   csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_BGRA_8888)   { pxf = SDL_PIXELFORMAT_BGRA32;   csp = SDL_COLORSPACE_SRGB;
-    // FIXME: are these correct?
-    } else if(fmt == pixelFormats.HAL_PIXEL_FORMAT_YCrCb_420_SP)  { pxf = SDL_PIXELFORMAT_NV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_SP) { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_I)  { pxf = SDL_PIXELFORMAT_UYVY; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    // https://developer.android.com/reference/android/graphics/ImageFormat#RAW_SENSOR
-    // a single-channel Bayer-mosaic image. Each pixel color sample is stored with 16 bits of precision.
-    // } else if (fmt == pixelFormats.HAL_PIXEL_FORMAT_RAW_SENSOR
-    // FIXME: what to use here?
-    } else if (fmt == pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m)            { pxf = SDL_PIXELFORMAT_EXTERNAL_OES; csp = SDL_COLORSPACE_BT601_LIMITED;
-    } else if (fmt == pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka) { pxf = SDL_PIXELFORMAT_EXTERNAL_OES; csp = SDL_COLORSPACE_BT601_LIMITED;
-    // from DroidMediaColourFormatConstants
-    } else if(fmt == colorFormats.OMX_COLOR_Format32bitARGB8888)    { pxf = SDL_PIXELFORMAT_ARGB32; csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == colorFormats.OMX_COLOR_Format32bitBGRA8888)    { pxf = SDL_PIXELFORMAT_BGRA32; csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == colorFormats.OMX_COLOR_Format16bitRGB565)      { pxf = SDL_PIXELFORMAT_RGB565; csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == colorFormats.OMX_COLOR_Format16bitBGR565)      { pxf = SDL_PIXELFORMAT_BGR565; csp = SDL_COLORSPACE_SRGB;
-    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420Planar)     { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
-//    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420Flexible)   { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if(fmt == colorFormats.OMX_COLOR_FormatYCbYCr)           { pxf = SDL_PIXELFORMAT_YV12; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV420SemiPlanar) { pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if(fmt == colorFormats.OMX_COLOR_FormatYUV422SemiPlanar) { pxf = SDL_PIXELFORMAT_YUY2; csp = SDL_COLORSPACE_YUV_DEFAULT;
-    } else if(fmt == 0x7F000789) {
-        SDL_PixelFormat *hintformat = (SDL_PixelFormat*) SDL_GetHint(SDL_HINT_DROIDCAMERA_PIXELFORMAT);
-        if (hintformat == NULL) {
-            pxf = SDL_PIXELFORMAT_NV21; csp = SDL_COLORSPACE_BT709_LIMITED;
-        } else {
-            pxf = *hintformat;
-            if(SDL_ISPIXELFORMAT_FOURCC(*hintformat)) {
-              csp = SDL_COLORSPACE_BT709_LIMITED;
-            } else {
-              csp = SDL_COLORSPACE_RGB_DEFAULT;
-            }
-        }
-    } else {
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Did not find format, returning default.");
-    }
-    *format = pxf;
-    *colorspace = csp;
-#ifdef DEBUG_CAMERA
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Looked up format: %u (0x%x), returning %s", fmt, fmt, SDL_GetPixelFormatName(pxf));
-#endif
- }
-
-static SDL_CameraPosition DroidCam_camPositionToSDLPosition(int facing)
-{
-    if (facing == DROID_MEDIA_CAMERA_FACING_FRONT) { return SDL_CAMERA_POSITION_FRONT_FACING; }
-    else if (facing == DROID_MEDIA_CAMERA_FACING_BACK) { return SDL_CAMERA_POSITION_BACK_FACING; }
-    return SDL_CAMERA_POSITION_UNKNOWN;
-}
-
-static bool initDroid()
-{
-    if(!droid_media_init()) {
-        SDL_SetError("Could not initialize droidmedia!");
-        return false;
-    }
-
-    droid_media_pixel_format_constants_init(&pixelFormats);
-    droid_media_camera_constants_init(&cameraConstants);
-    droid_media_colour_format_constants_init(&colorFormats);
-#if DEBUG_CAMERA
-SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Pixel Formats:\n\n\
-  %d: HAL_PIXEL_FORMAT_RGBA_8888\n\
-  %d: HAL_PIXEL_FORMAT_RGBX_8888\n\
-  %d: HAL_PIXEL_FORMAT_RGB_888\n\
-  %d: HAL_PIXEL_FORMAT_RGB_565\n\
-  %d: HAL_PIXEL_FORMAT_BGRA_8888\n\
-  %d: HAL_PIXEL_FORMAT_YV12\n\
-  %d: HAL_PIXEL_FORMAT_RAW_SENSOR\n\
-  %d: HAL_PIXEL_FORMAT_YCrCb_420_SP\n\
-  %d: HAL_PIXEL_FORMAT_YCbCr_422_SP\n\
-  %d: HAL_PIXEL_FORMAT_YCbCr_422_I\n\
-  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
-  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\n\
-",
-  pixelFormats.HAL_PIXEL_FORMAT_RGBA_8888,
-  pixelFormats.HAL_PIXEL_FORMAT_RGBX_8888,
-  pixelFormats.HAL_PIXEL_FORMAT_RGB_888,
-  pixelFormats.HAL_PIXEL_FORMAT_RGB_565,
-  pixelFormats.HAL_PIXEL_FORMAT_BGRA_8888,
-  pixelFormats.HAL_PIXEL_FORMAT_YV12,
-  pixelFormats.HAL_PIXEL_FORMAT_RAW_SENSOR,
-  pixelFormats.HAL_PIXEL_FORMAT_YCrCb_420_SP,
-  pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_SP,
-  pixelFormats.HAL_PIXEL_FORMAT_YCbCr_422_I,
-  pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m,
-  pixelFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka
-);
-
-SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Initialized Color Formats:\n\n\
-  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar32m\n\
-  %d: QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka\n\
-  %d: OMX_COLOR_FormatYUV420Planar\n\
-  %d: OMX_COLOR_FormatYUV420PackedPlanar\n\
-  %d: OMX_COLOR_FormatYUV420SemiPlanar\n\
-  %d: OMX_COLOR_FormatYUV422SemiPlanar\n\
-  %d: OMX_COLOR_FormatL8\n\
-  %d: OMX_COLOR_FormatYCbYCr\n\
-  %d: OMX_COLOR_FormatYCrYCb\n\
-  %d: OMX_COLOR_FormatCbYCrY\n\
-  %d: OMX_COLOR_Format32bitARGB8888\n\
-  %d: OMX_COLOR_Format32bitBGRA8888\n\
-  %d: OMX_COLOR_Format16bitRGB565\n\
-  %d: OMX_COLOR_Format16bitBGR565\n\
-",
-  colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar32m,
-  colorFormats.QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka,
-  colorFormats.OMX_COLOR_FormatYUV420Planar,
-  colorFormats.OMX_COLOR_FormatYUV420PackedPlanar,
-  colorFormats.OMX_COLOR_FormatYUV420SemiPlanar,
-  colorFormats.OMX_COLOR_FormatYUV422SemiPlanar,
-  colorFormats.OMX_COLOR_FormatL8,
-  colorFormats.OMX_COLOR_FormatYCbYCr,
-  colorFormats.OMX_COLOR_FormatYCrYCb,
-  colorFormats.OMX_COLOR_FormatCbYCrY,
-  colorFormats.OMX_COLOR_Format32bitARGB8888,
-  colorFormats.OMX_COLOR_Format32bitBGRA8888,
-  colorFormats.OMX_COLOR_Format16bitRGB565,
-  colorFormats.OMX_COLOR_Format16bitBGR565
-);
-#endif
-    return true;
-}
-
-static void DroidCam_setupCallbacks(SDL_Camera* device)
-{
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: Setting up callbacks");
-    {
-        DroidMediaCameraCallbacks cb;
-        cb.shutter_cb = DroidCam_handleShutter;
-        cb.focus_cb = DroidCam_handleFocus;
-        cb.focus_move_cb = DroidCam_handleFocusMove;
-        cb.error_cb = DroidCam_handleError;
-        cb.zoom_cb =   DroidCam_handleZoom;
-
-        cb.raw_image_cb = DroidCam_handleRawImage;
-        cb.compressed_image_cb =  DroidCam_handleCompressedImage;
-        cb.postview_frame_cb = DroidCam_handlePostviewFrame;
-        cb.raw_image_notify_cb = DroidCam_handleRawImageNotify;
-        cb.preview_frame_cb = DroidCam_handlePreviewFrame;
-
-        cb.preview_metadata_cb = DroidCam_handlePreviewMeta;
-        cb.video_frame_cb = DroidCam_handleVideoFrame;
-
-        droid_media_camera_set_callbacks(device->hidden->droidcam, &cb, device );
-
-        DroidCam_setPreviewCallbacksEnabled(device, true);
-    }
-#if 0
-    {
-        DroidMediaBufferQueueCallbacks cb;
-        DroidMediaBufferQueue* queue = droid_media_camera_get_buffer_queue (device->hidden->droidcam);
-
-        cb.buffers_released = DroidCam_handleBuffersReleased;
-        cb.frame_available = DroidCam_handleBufferFrame;
-        cb.buffer_created = DroidCam_handleBufferCreated;
-
-        droid_media_buffer_queue_set_callbacks (queue, &cb, device);
-    }
-#endif
-}
-
 static void DroidCam_handleError(void* data, int error) {
 #if DEBUG_CAMERA
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> handleError: %d", error);
@@ -812,6 +820,7 @@ LOCAL_UNUSED(data);
 LOCAL_UNUSED(mem);
 }
 
+/*
 static void DroidCam_handleBuffersReleased(void *data)
 {
 #if DEBUG_CAMERA
@@ -825,7 +834,7 @@ static bool DroidCam_handleBufferCreated(void *data, DroidMediaBuffer *buf)
 LOCAL_UNUSED(data);
 LOCAL_UNUSED(buf);
 #if DEBUG_CAMERA
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> handleBufferCreate");
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> handleBufferCreated");
 #endif
     return true;
 }
@@ -846,24 +855,13 @@ static bool DroidCam_handleBufferFrame(void *data, DroidMediaBuffer *buf)
     SDL_PixelFormat pfx; SDL_Colorspace csp;
     DroidCam_camFormatToSDLFormats(info->format, &pfx, &csp);
 
-    /* ... do something here... */
+    // ... do something here...
     droid_media_buffer_unlock(buf);
     droid_media_buffer_release(buf, NULL, NULL);
     droid_media_buffer_destroy(buf);
     return true;
 }
-
-static void DroidCam_setPreviewCallbacksEnabled(SDL_Camera *device, bool enable) {
-#if DEBUG_CAMERA
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "DROIDCAMERA: >> Preview callbacks %s.", enable ? "enabled" : "disabled");
-#endif
-        int cbflag = enable
-                   ? cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_CAMERA
-                   //? cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_CAMCORDER
-                   : cameraConstants.CAMERA_FRAME_CALLBACK_FLAG_NOOP;
-        droid_media_camera_set_preview_callback_flags(device->hidden->droidcam, cbflag);
-        droid_media_camera_send_command(device->hidden->droidcam, cameraConstants.CAMERA_CMD_PING, 0, 0);
-}
+*/
 
 static void DroidCam_handleRawImageNotify(void* data)
 {
