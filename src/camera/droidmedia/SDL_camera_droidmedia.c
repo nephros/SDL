@@ -32,13 +32,6 @@
 
 #define LOCAL_UNUSED(x) (void)(x)
 
-#if defined(NDEBUG)
-#ifdef DEBUG_CAMERA
-#undef DEBUG_CAMERA
-#endif
-#define DEBUG_CAMERA 1
-#endif
-
 #define KEY_PARAM_PREVIEW_FMT        "preview-format"
 //#define KEY_PARAM_PREVIEW_SIZE       "preferred-preview-size-for-video"
 #define KEY_PARAM_PREVIEW_SIZE       "preview-size"
