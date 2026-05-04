@@ -96,9 +96,15 @@
  * Note that Android, although ostensibly a Linux-based system, will not
  * define this. It defines SDL_PLATFORM_ANDROID instead.
  *
+ * Sailfish OS will both define this, and its own SDL_PLATFORM_SAILFISHOS
+ *
  * \since This macro is available since SDL 3.2.0.
  */
 #define SDL_PLATFORM_LINUX 1
+/* Sailfish OS is Linux but not only Linux */
+#if defined(__SAILFISHOS__)
+#define SDL_PLATFORM_SAILFISHOS 1
+#endif
 #endif
 
 #if defined(ANDROID) || defined(__ANDROID__)
