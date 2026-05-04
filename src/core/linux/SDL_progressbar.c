@@ -129,8 +129,8 @@ bool DBUS_ApplyWindowProgress(SDL_VideoDevice *_this, SDL_Window *window)
     SDL_DBus_CallVoidMethod(LipstickLauncherAPI_DBUS_NODE,
                             LipstickLauncherAPI_DBUS_PATH,
                             LipstickLauncherAPI_DBUS_INTERFACE,
-                            (lipstick_progress_visible ? LipstickLauncherAPI_DBUS_METHOD_START : LipstickLauncherAPI_DBUS_METHOD_STOP),
-                            DBUS_TYPE_STRING, desktop_path, DBUS_TYPE_INVALID);
+                            (lipstick_progress_visible == 1) ? LipstickLauncherAPI_DBUS_METHOD_START : LipstickLauncherAPI_DBUS_METHOD_STOP,
+                            DBUS_TYPE_STRING, &desktop_path, DBUS_TYPE_INVALID);
     SDL_free(desktop_path);
 #else
     char *objectPath = GetDBUSObjectPath();
