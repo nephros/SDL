@@ -455,7 +455,7 @@ endif()
 
 if (SAILFISHOS)
   # This enables the SDL_PLATFORM_SAILFISHOS define:
-  sdl_compile_definitions(PRIVATE "__SAILFISHOS__")
+  add_compile_definitions(PRIVATE "__SAILFISHOS__")
   set(SDL_TRAY                     OFF)
   set(SDL_X11                      OFF)
   set(SDL_X11_SHARED               OFF)
