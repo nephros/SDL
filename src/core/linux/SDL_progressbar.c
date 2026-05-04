@@ -37,7 +37,7 @@
 #define LipstickLauncherAPI_DBUS_PATH "/LauncherModel"
 #define LipstickLauncherAPI_DBUS_INTERFACE    "org.nemomobile.lipstick.LauncherModel"
 #define LipstickLauncherAPI_DBUS_METHOD_START "notifyLaunching"
-#define LipstickLauncherAPI_DBUS_METHOD_STOP  "cancelNotifyLaunching",
+#define LipstickLauncherAPI_DBUS_METHOD_STOP  "cancelNotifyLaunching"
 
 static char *GetDBUSObjectPath(void)
 {
