@@ -347,6 +347,7 @@
 #cmakedefine SDL_SENSOR_DUMMY 1
 #cmakedefine SDL_SENSOR_VITA 1
 #cmakedefine SDL_SENSOR_N3DS 1
+#cmakedefine SDL_SENSOR_SENSORFW 1
 #cmakedefine SDL_SENSOR_EMSCRIPTEN 1
 
 #cmakedefine SDL_SENSOR_PRIVATE 1
