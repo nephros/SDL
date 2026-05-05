@@ -157,7 +157,9 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                     SDL_sensors[SDL_sensors_count].method_name = SENSORFW_SENSOR_METHOD_GET_GYROSCOPE;
                     //SDL_sscanf(SENSORFW_SENSOR_INTERFACE_ACCELEROMETER, "local.%s", SDL_sensors[SDL_sensors_count].name);
                     SDL_sensors[SDL_sensors_count].name = "Accelerometer Sensor";
+#ifdef DEBUG_SENSORS
                     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Added sensor #%d: %s", SDL_sensors_count, SDL_sensors[SDL_sensors_count].name);
+#endif
                     SDL_sensors_count++;
                 } else
                 if(SDL_strcmp(str, SENSORFW_SENSOR_NAME_GYROSCOPE) == 0) {
@@ -168,27 +170,33 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                     SDL_sensors[SDL_sensors_count].plugin_name = SENSORFW_SENSOR_NAME_GYROSCOPE;
                     //SDL_sscanf(SENSORFW_SENSOR_NAME_GYROSCOPE, "local.%s", SDL_sensors[SDL_sensors_count].name);
                     SDL_sensors[SDL_sensors_count].name = "Gyroscope Sensor";
+#ifdef DEBUG_SENSORS
                     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Added sensor #%d: %s", SDL_sensors_count, SDL_sensors[SDL_sensors_count].name);
+#endif
                     SDL_sensors_count++;
+#ifdef DEBUG_SENSORS
                 } else {
                     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin %s ignored.", str); 
+#endif
                 }
                 count++;
             }
         }
         dbus->message_iter_next(&iter); // move to end
 
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin list yields %d/%d usable sensors.", SDL_sensors_count, count);
         SDL_DBus_FreeReply(&reply);
+#ifdef DEBUG_SENSORS
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin list yields %d/%d usable sensors.", SDL_sensors_count, count);
+#endif
     } else {
-        SDL_SetError("Could not list SensorFW plugins!");
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Could not list SensorFW plugins!");
         return false;
     }
 
     result = true;
 #endif
+#ifdef DEBUG_SENSORS
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "SensorInit done.");
+#endif
     return result;
 }
 
@@ -263,7 +271,9 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
                                     DBUS_TYPE_INVALID);
 
 */
+#ifdef DEBUG_SENSORS
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Requesting sensor session for %s", SDL_sensors[device_index].plugin_name);
+#endif
     // request the sensor:
     DBusMessage *reply = NULL;
     if(SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
@@ -335,7 +345,9 @@ static void SDL_SENSORFWDBUS_SensorClose(SDL_Sensor *sensor)
     }
 
     for (int index = 0; index < SDL_sensors_count; ++index) {
+#ifdef DEBUG_SENSORS
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Closing sensor session for %s", SDL_sensors[index].plugin_name);
+#endif
         SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
                                         SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
                                         SENSORFW_MANAGER_METHOD_STOP_SESSION,
