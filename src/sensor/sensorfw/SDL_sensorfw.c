@@ -35,24 +35,37 @@ typedef struct
      SfwSensorId ptype;
      SDL_SensorID instance_id;
      SfwSensor *sensor;
+     unsigned long handlerId;
 } SDL_SensorFWSensor;
 
 struct sensor_hwdata
 {
-    Uint32 counter;
-    unsigned int last_tick;
-    Uint64 sensor_timestamp;
+    bool active;
+//    SfwPlugin  *plugin;
+//    SfwService *service;
+    const char *name;
+    const char *object;
+    const char *interface;
 };
+
 static SDL_SensorFWSensor *SDL_sensors;
 static int SDL_sensors_count;
 
+const double datarate_hz = 60;
+
 static void SensorFW_UpdateAccel(SDL_Sensor *sensor);
 static void SensorFW_UpdateGyro(SDL_Sensor *sensor);
+
+static void accelUpdateCB(SfwSensor *sfwsensor, void* aptr);
+static void gyroUpdateCB(SfwSensor *sfwsensor, void* aptr);
 
 static bool SDL_SENSORFW_SensorInit(void)
 {
 
     SDL_sensors_count = 14;
+
+    sfwsensor_new(SFW_SENSOR_ID_ACCELEROMETER);
+    sfwsensor_new(SFW_SENSOR_ID_GYROSCOPE);
 
     SDL_sensors = (SDL_SensorFWSensor *)SDL_calloc(SDL_sensors_count, sizeof(*SDL_sensors));
     if (!SDL_sensors) {
@@ -69,6 +82,7 @@ static bool SDL_SENSORFW_SensorInit(void)
     SDL_sensors[1].type = SDL_SENSOR_GYRO;
     SDL_sensors[1].instance_id = SDL_GetNextObjectID();
 
+    // These are in sensorfw, but not in SDL:
     SDL_sensors[2].sensor = sfwsensor_new(SFW_SENSOR_ID_PROXIMITY);
     SDL_sensors[2].ptype = SFW_SENSOR_ID_PROXIMITY;
     SDL_sensors[2].type = SDL_SENSOR_INVALID;
@@ -134,7 +148,8 @@ static void SDL_SENSORFW_SensorDetect(void)
 
 static const char *SDL_SENSORFW_SensorGetDeviceName(int device_index)
 {
-    return sfwsensor_name(SDL_sensors[device_index].sensor);
+    //return sfwsensor_name(SDL_sensors[device_index].sensor);
+    return sfwsensorid_name(SDL_sensors[device_index].ptype);
     //return NULL;
 }
 
@@ -155,19 +170,61 @@ static SDL_SensorID SDL_SENSORFW_SensorGetDeviceInstanceID(int device_index)
 
 static bool SDL_SENSORFW_SensorOpen(SDL_Sensor *sensor, int device_index)
 {
-    SfwReading *hwdata;
+   SfwSensor* sfwsensor = SDL_sensors[device_index].sensor;
+   struct sensor_hwdata *hwdata;
 
-    hwdata = (struct SfwReading *)SDL_calloc(1, sizeof(*hwdata));
-    if (!hwdata) {
-        return false;
-    }
-    sensor->hwdata = hwdata;
+   hwdata = (struct sensor_hwdata *)SDL_calloc(1, sizeof(*hwdata));
+   if (!hwdata) {
+       return false;
+   }
 
-    return true;
+   switch (sensor->type) {
+   case SDL_SENSOR_ACCEL:
+       SDL_sensors[device_index].handlerId = sfwsensor_add_reading_changed_handler(
+               sfwsensor,
+               &accelUpdateCB,
+               (void*) sensor);
+       break;
+   case SDL_SENSOR_GYRO:
+       SDL_sensors[device_index].handlerId = sfwsensor_add_reading_changed_handler(
+               sfwsensor,
+               &gyroUpdateCB,
+               (void*) sensor);
+       break;
+   default:
+       break;
+   }
+
+   sfwsensor_set_datarate(sfwsensor, datarate_hz);
+   sfwsensor_start(sfwsensor);
+   //sfwsensor_plugin    (SDL_sensors[device_index].sensor);
+   //sfwsensor_service   (SDL_sensors[device_index].sensor);
+   hwdata->name =      sfwsensor_name(SDL_sensors[device_index].sensor);
+   hwdata->object =    sfwsensor_object(SDL_sensors[device_index].sensor);
+   hwdata->interface = sfwsensor_interface(SDL_sensors[device_index].sensor);
+
+   hwdata->active = sfwsensor_is_active(SDL_sensors[device_index].sensor);
+   SDL_LogVerbose(SDL_LOG_CATEGORY_SYSTEM, "Opened %s, p: %s, active: %d",
+                  hwdata->name,
+                  sfwplugin_name(sfwsensor_plugin(SDL_sensors[device_index].sensor)),
+                  hwdata->active
+                  );
+   sensor->hwdata = hwdata;
+   return true;
 }
 
 static void SDL_SENSORFW_SensorUpdate(SDL_Sensor *sensor)
 {
+   switch (sensor->type) {
+   case SDL_SENSOR_ACCEL:
+       SensorFW_UpdateAccel(sensor);
+       break;
+   case SDL_SENSOR_GYRO:
+       SensorFW_UpdateGyro(sensor);
+       break;
+   default:
+       break;
+   }
 }
 
 static void SDL_SENSORFW_SensorClose(SDL_Sensor *sensor)
@@ -176,9 +233,10 @@ static void SDL_SENSORFW_SensorClose(SDL_Sensor *sensor)
 
 static void SDL_SENSORFW_SensorQuit(void)
 {
-    for (int i = 0; i<SDL_sensors_count; i++) {
-        sfwsensor_stop(SDL_sensors[i].sensor);
-        sfwsensor_unref(SDL_sensors[i].sensor);
+    for (int id = 0; id<SDL_sensors_count; ++id) {
+        sfwsensor_remove_handler(SDL_sensors[id].sensor, SDL_sensors[id].handlerId);
+        //sfwsensor_stop(SDL_sensors[id].sensor);
+        sfwsensor_unref(SDL_sensors[id].sensor);
     }
 }
 
@@ -198,19 +256,57 @@ SDL_SensorDriver SDL_SENSORFW_SensorDriver = {
 
 static void SensorFW_UpdateAccel(SDL_Sensor *sensor)
 {
-     Uint64 timestamp = SDL_GetTicksNS();
-     SfwReading* current_state;
-     current_state = sfwsensor_reading((SfwSensor*) sensor);
-//     if (SDL_memcmp(&previous_state, &current_state, sizeof(SfwSampleAccelerometer)) != 0) {
-//         SDL_memcpy(&previous_state, &current_state, sizeof(SfwSampleAccelerometer));
-//         data[0] = (float)current_state.x * SDL_STANDARD_GRAVITY;
-//         data[1] = (float)current_state.y * SDL_STANDARD_GRAVITY;
-//         data[2] = (float)current_state.z * SDL_STANDARD_GRAVITY;
-//         SDL_SendSensorUpdate(timestamp, sensor, timestamp, data, sizeof(data));
-//     }
+    SfwSensor *ss = SDL_sensors[0].sensor; // 0 is Accel
+
+    static SfwSampleXyz previous_state = { 0, 0, 0, 0 };
+    float data[3];
+    Uint64 timestamp = SDL_GetTicksNS();
+
+    SfwReading* r = sfwsensor_reading(ss);
+    const SfwSampleAccelerometer* smpl = sfwreading_accelerometer(r);
+    SfwSampleXyz current_state = { 0, smpl->x, smpl->y, smpl->z };
+
+    if (SDL_memcmp(&previous_state, &current_state, sizeof(SfwSampleXyz)) != 0) {
+        SDL_memcpy(&previous_state, &current_state, sizeof(SfwSampleXyz));
+        data[0] = current_state.x * SDL_STANDARD_GRAVITY;
+        data[1] = current_state.y * SDL_STANDARD_GRAVITY;
+        data[2] = current_state.z * SDL_STANDARD_GRAVITY;
+        SDL_SendSensorUpdate(timestamp, sensor, smpl->timestamp, data, sizeof(data));
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Sent Accel reading: %s", sfwreading_repr(r));
+    }
 }
 static void SensorFW_UpdateGyro(SDL_Sensor *sensor)
 {
+    SfwSensor *ss = SDL_sensors[1].sensor; // 1 is Gyro
+
+    static SfwSampleXyz previous_state = { 0, 0, 0, 0 };
+    float data[3];
+    Uint64 timestamp = SDL_GetTicksNS();
+
+    SfwReading* r = sfwsensor_reading(ss);
+    const SfwSampleGyroscope* smpl = sfwreading_gyroscope(r);
+    SfwSampleXyz current_state = { 0, smpl->x, smpl->y, smpl->z };
+
+
+    if (SDL_memcmp(&previous_state, &current_state, sizeof(SfwSampleXyz)) != 0) {
+        SDL_memcpy(&previous_state, &current_state, sizeof(SfwSampleXyz));
+        data[0] = current_state.x;
+        data[1] = current_state.y;
+        data[2] = current_state.z;
+        SDL_SendSensorUpdate(timestamp, sensor, smpl->timestamp, data, sizeof(data));
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Sent Gyro reading: %s", sfwreading_repr(r));
+    }
+}
+
+static void accelUpdateCB(SfwSensor *sfwsensor, void* data)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Accel callback!");
+    SensorFW_UpdateAccel((SDL_Sensor*) data);
+}
+static void gyroUpdateCB(SfwSensor *sfwsensor, void* data)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Gyro callback!");
+    SensorFW_UpdateGyro((SDL_Sensor*) data);
 }
 
 #endif // SDL_SENSOR_SENSORFW
