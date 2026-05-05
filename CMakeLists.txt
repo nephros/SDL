@@ -2174,21 +2174,16 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
 
   if(SDL_SENSOR)
       if(SAILFISHOS)
-          pkg_check_modules(GLIB IMPORTED_TARGET glib-2.0)
-          pkg_check_modules(SENSORS_GLIB IMPORTED_TARGET sensors-glib)
-          if(SENSORS_GLIB_FOUND)
+        if(SDL_DBUS)
             set(SDL_SENSOR_SENSORFW 1)
             set(HAVE_SDL_SENSORS TRUE)
             sdl_glob_sources(
               "${SDL3_SOURCE_DIR}/src/sensor/sensorfw/*.c"
               "${SDL3_SOURCE_DIR}/src/sensor/sensorfw/*.h"
             )
-            sdl_include_directories(PRIVATE SYSTEM ${SENSORS_GLIB_INCLUDE_DIRS})
-            sdl_link_dependency(libsensors-glib LIBS ${SENSORS_GLIB_LIBRARIES})
             message(CONFIGURE_LOG "SensorFW enabled!")
           else()
             message(CONFIGURE_LOG "SensorFW not enabled!")
-            message(STATUS "Sensors-glib package bot found. No sensors for you.")
           endif()
       endif()
   endif()
