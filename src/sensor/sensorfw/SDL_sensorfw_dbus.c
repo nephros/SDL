@@ -22,7 +22,6 @@
 
 #if defined(SDL_SENSOR_SENSORFW)
 
-#include "SDL_sensorfw.h"
 #include "../SDL_syssensor.h"
 
 #include "../../core/linux/SDL_dbus.h"
