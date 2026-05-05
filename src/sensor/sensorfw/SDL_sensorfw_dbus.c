@@ -107,6 +107,8 @@ typedef struct
 static SDL_SensorFWSensor *SDL_sensors;
 static int SDL_sensors_count;
 
+static int64_t pid;
+
 static void SensorFW_UpdateAccelDbus(SDL_Sensor *sensor);
 static void SensorFW_UpdateGyroDbus(SDL_Sensor *sensor);
 
@@ -114,6 +116,7 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
 {
     bool result = false;
     SDL_sensors_count = 0;
+    pid = getpid();
 
 #ifdef SDL_USE_LIBDBUS
 
@@ -251,19 +254,19 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
         return false;
     }
 
+/*
     // load the plugin:
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Loading plugin.");
-    SDL_DBus_CallVoidMethodOnConnection(dbus->system_conn,
-                                        SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
-                                        SENSORFW_MANAGER_METHOD_LOAD_PLUGIN,
-                                        DBUS_TYPE_STRING, &SDL_sensors[device_index].plugin_name,
-                                        DBUS_TYPE_INVALID);
+    SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
+                                    SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
+                                    SENSORFW_MANAGER_METHOD_LOAD_PLUGIN,
+                                    DBUS_TYPE_STRING, &SDL_sensors[device_index].plugin_name,
+                                    DBUS_TYPE_INVALID);
 
-
+*/
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Requesting sensor session for %s", SDL_sensors[device_index].plugin_name);
     // request the sensor:
     DBusMessage *reply = NULL;
-    int64_t pid = getpid();
     if(SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
                                         SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
                                         SENSORFW_MANAGER_METHOD_START_SESSION,
@@ -292,14 +295,15 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Got Session Id %i", id);
     }
     SDL_DBus_FreeReply(&reply);
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Starting sensor.");
+    char obj[128];
+    SDL_snprintf(&obj, sizeof(obj), "%s/%s", SENSORFW_MANAGER_OBJECT, SDL_sensors[device_index].plugin_name);
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Starting sensor at %s", obj);
     return SDL_DBus_CallVoidMethodOnConnection(dbus->system_conn,
-                                        SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT,
+                                        SENSORFW_SERVICE, &obj,
                                         SDL_sensors[device_index].interface_name,
                                         SENSORFW_SENSOR_METHOD_START,
                                         DBUS_TYPE_INT32, &SDL_sensors[device_index].session,
                                         DBUS_TYPE_INVALID);
-
 
 #endif
     //sensor->hwdata = hwdata;
@@ -323,6 +327,25 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
 }
 static void SDL_SENSORFWDBUS_SensorClose(SDL_Sensor *sensor)
 {
+#ifdef SDL_USE_LIBDBUS
+
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
+
+    if (!dbus || !dbus->system_conn) {
+        return;
+    }
+
+    for (int index = 0; index < SDL_sensors_count; ++index) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Closing sensor session for %s", SDL_sensors[index].plugin_name);
+        SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
+                                        SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
+                                        SENSORFW_MANAGER_METHOD_STOP_SESSION,
+                                        DBUS_TYPE_STRING, &SDL_sensors[index].plugin_name,
+                                        DBUS_TYPE_INT32, &SDL_sensors[index].session,
+                                        DBUS_TYPE_INT64, &pid,
+                                        DBUS_TYPE_INVALID);
+    }
+#endif
 }
 
 static void SDL_SENSORFWDBUS_SensorQuit(void)
