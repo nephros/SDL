@@ -25,6 +25,7 @@
 #include "SDL_sensorfw.h"
 #include "../SDL_syssensor.h"
 
+#include <glib-2.0/glib.h>
 #include <sensors-glib/sfwreporting.h>
 #include <sensors-glib/sfwsensor.h>
 #include <sensors-glib/sfwplugin.h>
@@ -41,6 +42,7 @@ typedef struct
 struct sensor_hwdata
 {
     bool active;
+    bool valid;
 //    SfwPlugin  *plugin;
 //    SfwService *service;
     const char *name;
@@ -56,8 +58,14 @@ const double datarate_hz = 60;
 static void SensorFW_UpdateAccel(SDL_Sensor *sensor);
 static void SensorFW_UpdateGyro(SDL_Sensor *sensor);
 
+#ifdef DEBUG_SENSORS
+static void activeChangedCB(SfwSensor *sfwsensor, void* aptr);
+static void validChangedCB(SfwSensor *sfwsensor, void* aptr);
+#endif
 static void accelUpdateCB(SfwSensor *sfwsensor, void* aptr);
 static void gyroUpdateCB(SfwSensor *sfwsensor, void* aptr);
+
+static GMainContext *maincontext;
 
 static bool SDL_SENSORFW_SensorInit(void)
 {
@@ -134,6 +142,7 @@ static bool SDL_SENSORFW_SensorInit(void)
     SDL_sensors[13].type = SDL_SENSOR_INVALID;
     SDL_sensors[13].instance_id = SDL_GetNextObjectID();
 
+    maincontext = g_main_context_new();
     return true;
 }
 
@@ -180,12 +189,32 @@ static bool SDL_SENSORFW_SensorOpen(SDL_Sensor *sensor, int device_index)
 
    switch (sensor->type) {
    case SDL_SENSOR_ACCEL:
+#ifdef DEBUG_SENSORS
+       SDL_sensors[device_index].handlerId = sfwsensor_add_valid_changed_handler(
+               sfwsensor,
+               &validChangedCB,
+               (void*) sensor);
+       SDL_sensors[device_index].handlerId = sfwsensor_add_active_changed_handler(
+               sfwsensor,
+               &activeChangedCB,
+               (void*) sensor);
+#endif
        SDL_sensors[device_index].handlerId = sfwsensor_add_reading_changed_handler(
                sfwsensor,
                &accelUpdateCB,
                (void*) sensor);
        break;
    case SDL_SENSOR_GYRO:
+#ifdef DEBUG_SENSORS
+       SDL_sensors[device_index].handlerId = sfwsensor_add_valid_changed_handler(
+               sfwsensor,
+               &validChangedCB,
+               (void*) sensor);
+       SDL_sensors[device_index].handlerId = sfwsensor_add_active_changed_handler(
+               sfwsensor,
+               &activeChangedCB,
+               (void*) sensor);
+#endif
        SDL_sensors[device_index].handlerId = sfwsensor_add_reading_changed_handler(
                sfwsensor,
                &gyroUpdateCB,
@@ -194,7 +223,6 @@ static bool SDL_SENSORFW_SensorOpen(SDL_Sensor *sensor, int device_index)
    default:
        break;
    }
-
    sfwsensor_set_datarate(sfwsensor, datarate_hz);
    sfwsensor_start(sfwsensor);
    //sfwsensor_plugin    (SDL_sensors[device_index].sensor);
@@ -203,10 +231,19 @@ static bool SDL_SENSORFW_SensorOpen(SDL_Sensor *sensor, int device_index)
    hwdata->object =    sfwsensor_object(SDL_sensors[device_index].sensor);
    hwdata->interface = sfwsensor_interface(SDL_sensors[device_index].sensor);
 
+   hwdata->valid = sfwsensor_is_valid(SDL_sensors[device_index].sensor);
    hwdata->active = sfwsensor_is_active(SDL_sensors[device_index].sensor);
-   SDL_LogVerbose(SDL_LOG_CATEGORY_SYSTEM, "Opened %s, p: %s, active: %d",
+
+   if (!hwdata->valid) {
+       SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM,"Sensor %d (%s) was reported as not valid.", device_index,  hwdata->name);
+       //SDL_SetError("Sensor %d (%s) is not valid.", device_index,  hwdata->name);
+       //return false;
+   }
+
+   SDL_LogVerbose(SDL_LOG_CATEGORY_SYSTEM, "Opened %s, plugin: %s, valid: %d, active: %d",
                   hwdata->name,
                   sfwplugin_name(sfwsensor_plugin(SDL_sensors[device_index].sensor)),
+                  hwdata->valid,
                   hwdata->active
                   );
    sensor->hwdata = hwdata;
@@ -215,6 +252,9 @@ static bool SDL_SENSORFW_SensorOpen(SDL_Sensor *sensor, int device_index)
 
 static void SDL_SENSORFW_SensorUpdate(SDL_Sensor *sensor)
 {
+   SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Update");
+   g_main_context_iteration (maincontext, false);
+
    switch (sensor->type) {
    case SDL_SENSOR_ACCEL:
        SensorFW_UpdateAccel(sensor);
@@ -238,6 +278,7 @@ static void SDL_SENSORFW_SensorQuit(void)
         //sfwsensor_stop(SDL_sensors[id].sensor);
         sfwsensor_unref(SDL_sensors[id].sensor);
     }
+    g_main_context_unref(maincontext);
 }
 
 SDL_SensorDriver SDL_SENSORFW_SensorDriver = {
@@ -308,5 +349,15 @@ static void gyroUpdateCB(SfwSensor *sfwsensor, void* data)
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Gyro callback!");
     SensorFW_UpdateGyro((SDL_Sensor*) data);
 }
+#ifdef DEBUG_SENSORS
+static void activeChangedCB(SfwSensor *sfwsensor, void* aptr)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Active changed callback!");
+}
+static void validChangedCB(SfwSensor *sfwsensor, void* aptr)
+{
+    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Valid changed callback!");
+}
+#endif
 
 #endif // SDL_SENSOR_SENSORFW
