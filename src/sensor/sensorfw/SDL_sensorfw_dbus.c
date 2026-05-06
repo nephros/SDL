@@ -324,34 +324,43 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                                              fwsensor.method_name,
                                              DBUS_TYPE_INVALID))
         {
+            // FIXME: this only deals with accel and gyro readings, and badly.
+            //        add proper parsing!
             if (reply != NULL) {
                 DBusMessageIter iter;
                 DBusMessageIter struct_iter;
                 uint64_t ts = 0;
-                uint32_t value = 0;
-                float data[3];
+                //float value = 0.0f;
+                float data[3] = { 0, 0, 0 };
                 int data_index = 0;
-                /* "value" call has 
-                STRUCT "tddd" {
-                        UINT64 445538660099;
-                        DOUBLE -1093.72;
-                        DOUBLE -199041;
-                        DOUBLE 78122.8;
-                };
-                */
+                // for a list, see https://github.com/sailfishos/sensorfw/blob/master/doc/mainpage.h
+                // according to that, both "value" and "xyz" return "(tiii)" (struct)
                 dbus->message_iter_init(reply, &iter);
                 if (DBUS_TYPE_STRUCT == dbus->message_iter_get_arg_type(&iter)) {
                     dbus->message_iter_recurse(&iter, &struct_iter);
                     do {
                         if (DBUS_TYPE_UINT64 == dbus->message_iter_get_arg_type(&struct_iter)) {
+                            // assuming ms
                             dbus->message_iter_get_basic(&struct_iter, &ts);
                         } else
+                        /*
                         if (DBUS_TYPE_UINT32 == dbus->message_iter_get_arg_type(&struct_iter)) {
-                            dbus->message_iter_get_basic(&struct_iter, (float*)&value);
+                            uint32_t tmp;
+                            dbus->message_iter_get_basic(&struct_iter, &tmp);
+                            value = (float) tmp;
+                        } else
+                        */
+                        if (DBUS_TYPE_INT32 == dbus->message_iter_get_arg_type(&struct_iter)) {
+                            int32_t tmp;
+                            dbus->message_iter_get_basic(&struct_iter, &tmp);
+                            data[data_index] = (float) tmp;
+                            data_index++;
+                        /*
                         } else
                         if (DBUS_TYPE_DOUBLE == dbus->message_iter_get_arg_type(&struct_iter)) {
                             dbus->message_iter_get_basic(&struct_iter, &data[data_index]);
                             data_index++;
+                        */
                         }
 #ifdef DEBUG_SENSORS
                         else {
@@ -360,14 +369,8 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                     } while (dbus->message_iter_next(&struct_iter));
                 }
                 SDL_DBus_FreeReply(&reply);
-                if (data_index > 0) {
-                    SDL_SendSensorUpdate(timestamp, sensor, ts, data, sizeof(data));
-                    return;
-                } else {
-                  // FIXME: should type-pun, not cast:
-                    SDL_SendSensorUpdate(timestamp, sensor, ts, (float*) &value, sizeof((float)value));
-                    return;
-                }
+                SDL_SendSensorUpdate(timestamp, sensor, ts, data, sizeof(data));
+                return;
             }
         }
     }
