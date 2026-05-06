@@ -2036,8 +2036,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
             pkg_search_module(MALIIT maliit-glib)
             if(MALIIT_FOUND)
               set(HAVE_MALIIT TRUE)
-              message(CONFIGURE_LOG "FIXME: Maliit IME enabled, but not implemented!")
-              message(STATUS "FIXME: Maliit IME enabled, but not implemented!")
+              message(STATUS "Maliit IME enabled!")
             endif()
           endif()
           set(HAVE_DBUS TRUE)
@@ -2110,6 +2109,14 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
         "${SDL3_SOURCE_DIR}/src/core/linux/SDL_fcitx.h"
       )
     endif()
+
+    if(HAVE_MALIIT)
+      sdl_sources(
+        "${SDL3_SOURCE_DIR}/src/core/linux/SDL_maliit.c"
+        "${SDL3_SOURCE_DIR}/src/core/linux/SDL_maliit.h"
+      )
+    endif()
+
 
     if(HAVE_LIBUDEV_H)
       sdl_sources(
