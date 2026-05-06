@@ -123,21 +123,28 @@ static int SDL_sensors_count;
 
 static int64_t pid;
 
-static const char* SensorFW_ObjectPath(const char* name);
+static const char* SensorFW_ObjectPath(const char* name)
+{
+    char* tmp;
+    SDL_asprintf(&tmp, "%s/%s", SENSORFW_MANAGER_OBJECT, name);
+    return (const char*) SDL_strdup(tmp);
+}
 
-static void SensorFW_UpdateAccel(SDL_Sensor *sensor);
-static void SensorFW_UpdateGyro(SDL_Sensor *sensor);
+
 
 static bool SDL_SENSORFWDBUS_SensorInit(void)
 {
+#ifndef SDL_USE_LIBDBUS
+    return SDL_Unsupported();
+#endif
     bool result = false;
     SDL_sensors_count = 0;
     pid = getpid();
 
 #ifdef SDL_USE_LIBDBUS
 
-    // FIXME: we alloc exactly two sensors.
-    // We have more, but SDL only supports accel and gyro anyway.
+    // TODO: we alloc exactly two sensors.
+    // SensorFW supports more, but SDL (basically)only supports accel and gyro.
     SDL_sensors = (SDL_SensorFWSensor *)SDL_calloc(2, sizeof(*SDL_sensors));
     if (!SDL_sensors) {
         return false;
@@ -174,9 +181,6 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                     SDL_sensors[SDL_sensors_count].method_name = SENSORFW_SENSOR_METHOD_GET_ACCELEROMETER;
                     //SDL_sscanf(SENSORFW_SENSOR_INTERFACE_ACCELEROMETER, "local.%s", SDL_sensors[SDL_sensors_count].name);
                     SDL_sensors[SDL_sensors_count].name = "Accelerometer Sensor";
-#ifdef DEBUG_SENSORS
-                    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Added sensor #%d: %s", SDL_sensors_count, SDL_sensors[SDL_sensors_count].name);
-#endif
                     SDL_sensors_count++;
                 } else
                 if(SDL_strcmp(str, SENSORFW_SENSOR_NAME_GYROSCOPE) == 0) {
@@ -187,9 +191,6 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                     SDL_sensors[SDL_sensors_count].plugin_name = SENSORFW_SENSOR_NAME_GYROSCOPE;
                     //SDL_sscanf(SENSORFW_SENSOR_NAME_GYROSCOPE, "local.%s", SDL_sensors[SDL_sensors_count].name);
                     SDL_sensors[SDL_sensors_count].name = "Gyroscope Sensor";
-#ifdef DEBUG_SENSORS
-                    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Added sensor #%d: %s", SDL_sensors_count, SDL_sensors[SDL_sensors_count].name);
-#endif
                     SDL_sensors_count++;
 #ifdef DEBUG_SENSORS
                 } else {
@@ -202,17 +203,14 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
         dbus->message_iter_next(&iter); // move to end
 
         SDL_DBus_FreeReply(&reply);
+        result = true;
 #ifdef DEBUG_SENSORS
         SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin list yields %d/%d usable sensors.", SDL_sensors_count, count);
 #endif
     } else {
-        return false;
+        result = false;
     }
 
-    result = true;
-#endif
-#ifdef DEBUG_SENSORS
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "SensorInit done.");
 #endif
     return result;
 }
@@ -249,7 +247,7 @@ static int SDL_SENSORFWDBUS_SensorGetDeviceNonPortableType(int device_index)
         return SDL_sensors[device_index].ptype;
     }
     */
-    return -1;
+    return (int)SDL_SENSORFWDBUS_SensorGetDeviceType(device_index);
 }
 
 static SDL_SensorID SDL_SENSORFWDBUS_SensorGetDeviceInstanceID(int device_index)
@@ -262,15 +260,6 @@ static SDL_SensorID SDL_SENSORFWDBUS_SensorGetDeviceInstanceID(int device_index)
 
 static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
 {
-    /*
-    struct sensor_hwdata *hwdata;
-
-    hwdata = (struct sensor_hwdata *)SDL_calloc(1, sizeof(*hwdata));
-    if (!hwdata) {
-        return false;
-    }
-    sensor->hwdata = hwdata;
-    */
 #ifdef SDL_USE_LIBDBUS
 
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
@@ -280,55 +269,32 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
     }
     SDL_SensorFWSensor fwsensor = SDL_sensors[device_index];
 
-/*
-    // load the plugin:
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Loading plugin.");
-    SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
-                                    SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
-                                    SENSORFW_MANAGER_METHOD_LOAD_PLUGIN,
-                                    DBUS_TYPE_STRING, &fwsensor.plugin_name,
-                                    DBUS_TYPE_INVALID);
-
-*/
 #ifdef DEBUG_SENSORS
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Requesting sensor session for %s", fwsensor.plugin_name);
 #endif
     // request the sensor:
     DBusMessage *reply = NULL;
-    if(SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
-                                        SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
-                                        SENSORFW_MANAGER_METHOD_START_SESSION,
-                                        DBUS_TYPE_STRING, &fwsensor.plugin_name,
-                                        DBUS_TYPE_INT64, &pid,
-                                        DBUS_TYPE_INVALID))
-    {
-#ifdef DEBUG_SENSORS
-        fwsensor.plugin_loaded = true;
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Ok");
-    } else
-    {
-        char* err = NULL;
-        dbus->error_has_name(reply, &err);
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Failed: %s", err);
-#endif
+    SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
+                                    SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
+                                    SENSORFW_MANAGER_METHOD_START_SESSION,
+                                    DBUS_TYPE_STRING, &fwsensor.plugin_name,
+                                    DBUS_TYPE_INT64, &pid,
+                                    DBUS_TYPE_INVALID);
+    if (reply == NULL) {
+        SDL_SetError("Could not request sensor: %s", SDL_GetError());
         return false;
     }
     DBusMessageIter iter;
     dbus->message_iter_init(reply, &iter);
-//    dbus->message_iter_next(&iter);
     if (DBUS_TYPE_INT32 == dbus->message_iter_get_arg_type(&iter)) {
         int32_t id;
         dbus->message_iter_get_basic(&iter, &id);
         fwsensor.session = id;
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Got Session Id %i", id);
     }
     SDL_DBus_FreeReply(&reply);
 
-
-    const char* path = SensorFW_ObjectPath(fwsensor.plugin_name);
-
     // start sensor instance
-    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Starting sensor at %s", path);
+    const char* path = SensorFW_ObjectPath(fwsensor.plugin_name);
     return SDL_DBus_CallVoidMethodOnConnection(dbus->system_conn,
                                         SENSORFW_SERVICE, (const char*) SDL_strdup(path),
                                         fwsensor.interface_name,
@@ -336,17 +302,14 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
                                         DBUS_TYPE_INT32, &fwsensor.session,
                                         DBUS_TYPE_INVALID);
 
-
-#else
-    return SDL_Unsupported();
 #endif
     return false;
 }
 
 static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
 {
-   Uint64 timestamp = SDL_GetTicksNS();
 #ifdef SDL_USE_LIBDBUS
+    Uint64 timestamp = SDL_GetTicksNS();
 
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
 
@@ -357,13 +320,6 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
     for (int index = 0; index < SDL_sensors_count; ++index) {
         SDL_SensorFWSensor fwsensor = SDL_sensors[index];
         DBusMessage *reply = NULL;
-        /*
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Calling: %s %s %s %s",
-                                             SENSORFW_SERVICE,
-                                             SensorFW_ObjectPath(fwsensor.plugin_name),
-                                             fwsensor.interface_name,
-                                             fwsensor.method_name);
-        */
         if (!SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
                                              SENSORFW_SERVICE,
                                              SensorFW_ObjectPath(fwsensor.plugin_name),
@@ -376,7 +332,7 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                 DBusMessageIter struct_iter;
                 uint64_t ts = 0;
                 uint32_t value = 0;
-                double data[3];
+                float data[3];
                 int data_index = 0;
                 /* "value" call has 
                 STRUCT "tddd" {
@@ -388,34 +344,34 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                 */
                 dbus->message_iter_init(reply, &iter);
                 if (DBUS_TYPE_STRUCT == dbus->message_iter_get_arg_type(&iter)) {
-                    //SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Entering struct");
                     dbus->message_iter_recurse(&iter, &struct_iter);
                     do {
                         if (DBUS_TYPE_UINT64 == dbus->message_iter_get_arg_type(&struct_iter)) {
                             dbus->message_iter_get_basic(&struct_iter, &ts);
                         } else
                         if (DBUS_TYPE_UINT32 == dbus->message_iter_get_arg_type(&struct_iter)) {
-                            dbus->message_iter_get_basic(&struct_iter, &value);
+                            dbus->message_iter_get_basic(&struct_iter, (float*)&value);
                         } else
                         if (DBUS_TYPE_DOUBLE == dbus->message_iter_get_arg_type(&struct_iter)) {
                             dbus->message_iter_get_basic(&struct_iter, &data[data_index]);
                             data_index++;
-                        } else
+                        }
+#ifdef DEBUG_SENSORS
+                        else {
                             SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Unknown value: %d", dbus->message_iter_get_arg_type(&struct_iter));
+#endif
                     } while (dbus->message_iter_next(&struct_iter));
-                    //SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Got: %ld/%f/%f/%f", ts, data[0], data[1], data[2]);
                 }
                 SDL_DBus_FreeReply(&reply);
                 if (data_index > 0) {
                     SDL_SendSensorUpdate(timestamp, sensor, ts, data, sizeof(data));
+                    return;
                 } else {
-                    SDL_SendSensorUpdate(timestamp, sensor, ts, value, sizeof(value));
+                  // FIXME: should type-pun, not cast:
+                    SDL_SendSensorUpdate(timestamp, sensor, ts, (float*) &value, sizeof((float)value));
+                    return;
                 }
-            } else { SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Reply was empty");
             }
-        } else
-        {
-            SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Failed: %s", SDL_GetError());
         }
     }
 #endif
@@ -432,9 +388,6 @@ static void SDL_SENSORFWDBUS_SensorClose(SDL_Sensor *sensor)
     }
 
     for (int index = 0; index < SDL_sensors_count; ++index) {
-#ifdef DEBUG_SENSORS
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Closing sensor session for %s", SDL_sensors[index].plugin_name);
-#endif
         SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
                                         SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
                                         SENSORFW_MANAGER_METHOD_STOP_SESSION,
@@ -463,15 +416,8 @@ SDL_SensorDriver SDL_SENSORFWDBUS_SensorDriver = {
     SDL_SENSORFWDBUS_SensorClose,
     SDL_SENSORFWDBUS_SensorQuit,
 };
-
-static const char* SensorFW_ObjectPath(const char* name)
-{
-    char* tmp;
-    SDL_asprintf(&tmp, "%s/%s", SENSORFW_MANAGER_OBJECT, name);
-    return (const char*) SDL_strdup(tmp);
-}
-
-static void DBus_SetDataRate(const SDL_SensorFWSensor* sensor, const double rate)
+/*
+static void _SetDataRate(const SDL_SensorFWSensor* sensor, const double rate)
 {
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
     SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
@@ -483,8 +429,10 @@ static void DBus_SetDataRate(const SDL_SensorFWSensor* sensor, const double rate
                                     DBUS_TYPE_DOUBLE, rate,
                                     DBUS_TYPE_INVALID);
 }
+*/
 
-static void DBus_GetSensorProperties(const SDL_SensorFWSensor* sensor)
+/*
+static void _GetSensorProperties(const SDL_SensorFWSensor* sensor, void* user_data)
 {
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
     DBusMessage *reply = NULL;
@@ -497,52 +445,6 @@ static void DBus_GetSensorProperties(const SDL_SensorFWSensor* sensor)
                            DBUS_TYPE_INVALID);
     SDL_DBus_FreeReply(&reply);
 }
-
-static void SensorFW_UpdateAccel(SDL_Sensor *sensor)
-{
-    //SfwSensor *ss = SDL_sensors[0].sensor; // 0 is Accel
-
-//    static SfwSampleXyz previous_state = { 0, 0, 0, 0 };
-    //float data[3];
-    //Uint64 timestamp = SDL_GetTicksNS();
-/*
-    SfwReading* r = sfwsensor_reading(ss);
-    const SfwSampleAccelerometer* smpl = sfwreading_accelerometer(r);
-    SfwSampleXyz current_state = { 0, smpl->x, smpl->y, smpl->z };
-
-    if (SDL_memcmp(&previous_state, &current_state, sizeof(SfwSampleXyz)) != 0) {
-        SDL_memcpy(&previous_state, &current_state, sizeof(SfwSampleXyz));
-        data[0] = current_state.x * SDL_STANDARD_GRAVITY;
-        data[1] = current_state.y * SDL_STANDARD_GRAVITY;
-        data[2] = current_state.z * SDL_STANDARD_GRAVITY;
-        SDL_SendSensorUpdate(timestamp, sensor, smpl->timestamp, data, sizeof(data));
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Sent Accel reading: %s", sfwreading_repr(r));
-    }
 */
-}
-static void SensorFW_UpdateGyro(SDL_Sensor *sensor)
-{
-    //SfwSensor *ss = SDL_sensors[1].sensor; // 1 is Gyro
-
-//    static SfwSampleXyz previous_state = { 0, 0, 0, 0 };
-    //float data[3];
-    //Uint64 timestamp = SDL_GetTicksNS();
-
-/*
-    SfwReading* r = sfwsensor_reading(ss);
-    const SfwSampleGyroscope* smpl = sfwreading_gyroscope(r);
-    SfwSampleXyz current_state = { 0, smpl->x, smpl->y, smpl->z };
-
-
-    if (SDL_memcmp(&previous_state, &current_state, sizeof(SfwSampleXyz)) != 0) {
-        SDL_memcpy(&previous_state, &current_state, sizeof(SfwSampleXyz));
-        data[0] = current_state.x;
-        data[1] = current_state.y;
-        data[2] = current_state.z;
-        SDL_SendSensorUpdate(timestamp, sensor, smpl->timestamp, data, sizeof(data));
-        SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Sent Gyro reading: %s", sfwreading_repr(r));
-    }
-*/
-}
 
 #endif // SDL_SENSOR_SENSORFW
