@@ -25,14 +25,12 @@
 
 #include "../../SDL_internal.h"
 
-#include "SDL_stdinc.h"
-#include "SDL_rect.h"
 
-extern SDL_bool SDL_Maliit_Init(void);
+extern bool SDL_Maliit_Init(void);
 extern void SDL_Maliit_Quit(void);
-extern void SDL_Maliit_SetFocus(SDL_bool focused);
+extern void SDL_Maliit_SetFocus(bool focused);
 extern void SDL_Maliit_Reset(void);
-extern SDL_bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state);
+extern bool SDL_Maliit_ProcessKeyEvent(Uint32 keysym, Uint32 keycode, Uint8 state);
 extern void SDL_Maliit_UpdateTextRect(const SDL_Rect *rect);
 extern void SDL_Maliit_PumpEvents(void);
 
