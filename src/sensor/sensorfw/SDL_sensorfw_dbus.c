@@ -169,7 +169,7 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
         dbus->message_iter_init(reply, &iter);
         dbus->message_iter_recurse(&iter, &array_iter);
         int count = 0;
-        while (dbus->message_iter_next(&array_iter)) {
+        do {
             if (DBUS_TYPE_STRING == dbus->message_iter_get_arg_type(&array_iter)) {
                 const char *str;
                 dbus->message_iter_get_basic(&array_iter, &str);
@@ -199,7 +199,7 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                 }
                 count++;
             }
-        }
+        } while (dbus->message_iter_next(&array_iter));
         dbus->message_iter_next(&iter); // move to end
 
         SDL_DBus_FreeReply(&reply);
