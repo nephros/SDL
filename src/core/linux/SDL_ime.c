@@ -23,6 +23,7 @@
 #include "SDL_ime.h"
 #include "SDL_ibus.h"
 #include "SDL_fcitx.h"
+#include "SDL_maliit.h"
 
 typedef bool (*SDL_IME_Init_t)(void);
 typedef void (*SDL_IME_Quit_t)(void);
@@ -43,9 +44,11 @@ static SDL_IME_PumpEvents_t SDL_IME_PumpEvents_Real = NULL;
 static void InitIME(void)
 {
     static bool inited = false;
-#ifdef HAVE_FCITX
+#if defined(HAVE_FCITX) || defined(HAVE_MALIIT)
     const char *im_module = SDL_getenv("SDL_IM_MODULE");
+#ifdef HAVE_FCITX
     const char *xmodifiers = SDL_getenv("XMODIFIERS");
+#endif
 #endif
 
     if (inited == true) {
@@ -68,6 +71,21 @@ static void InitIME(void)
         SDL_IME_PumpEvents_Real = SDL_Fcitx_PumpEvents;
     }
 #endif // HAVE_FCITX
+
+    // See if Maliit IME support is being requested
+#ifdef HAVE_MALIIT
+    if (!SDL_IME_Init_Real &&
+        (im_module && SDL_strcmp(im_module, "Maliit") == 0)
+        SDL_IME_Init_Real = SDL_Maliit_Init;
+        SDL_IME_Quit_Real = SDL_Maliit_Quit;
+        SDL_IME_SetFocus_Real = SDL_Maliit_SetFocus;
+        SDL_IME_Reset_Real = SDL_Maliit_Reset;
+        SDL_IME_ProcessKeyEvent_Real = SDL_Maliit_ProcessKeyEvent;
+        SDL_IME_UpdateTextInputArea_Real = SDL_Maliit_UpdateTextInputArea;
+        SDL_IME_PumpEvents_Real = SDL_Maliit_PumpEvents;
+    }
+#endif // HAVE_MALIIT
+
 
     // default to IBus
 #ifdef HAVE_IBUS_IBUS_H
