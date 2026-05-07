@@ -329,8 +329,7 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
             if (reply != NULL) {
                 DBusMessageIter iter;
                 DBusMessageIter struct_iter;
-                uint64_t ts = 0;
-                //float value = 0.0f;
+                uint64_t sensorstamp = 0;
                 float data[3] = { 0, 0, 0 };
                 int data_index = 0;
                 // for a list, see https://github.com/sailfishos/sensorfw/blob/master/doc/mainpage.h
@@ -341,7 +340,7 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                     do {
                         if (DBUS_TYPE_UINT64 == dbus->message_iter_get_arg_type(&struct_iter)) {
                             // assuming ms
-                            dbus->message_iter_get_basic(&struct_iter, &ts);
+                            dbus->message_iter_get_basic(&struct_iter, &sensorstamp);
                         } else
                         /*
                         if (DBUS_TYPE_UINT32 == dbus->message_iter_get_arg_type(&struct_iter)) {
@@ -353,7 +352,7 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                         if (DBUS_TYPE_INT32 == dbus->message_iter_get_arg_type(&struct_iter)) {
                             int32_t tmp;
                             dbus->message_iter_get_basic(&struct_iter, &tmp);
-                            data[data_index] = (float) tmp;
+                            data[data_index] = tmp/1.0f; //convert to float
                             data_index++;
                         /*
                         } else
@@ -369,7 +368,10 @@ static void SDL_SENSORFWDBUS_SensorUpdate(SDL_Sensor *sensor)
                     } while (dbus->message_iter_next(&struct_iter));
                 }
                 SDL_DBus_FreeReply(&reply);
-                SDL_SendSensorUpdate(timestamp, sensor, ts, data, sizeof(data));
+                // relatively stupid avoidance of empty readings:
+                const float checkdata[3] = { 0, 0, 0 };
+                if (SDL_memcmp(&checkdata, &data, sizeof(data)) != 0) //data is not null
+                    SDL_SendSensorUpdate(timestamp, sensor, sensorstamp, data, sizeof(data));
                 return;
             }
         }
