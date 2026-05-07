@@ -27,11 +27,35 @@
 #include "../../core/linux/SDL_dbus.h"
 #include <unistd.h>
 
-/* copied straight from
+/* For the SensorFW DBus API, the best "documentation" I have found is at
+ *    https://github.com/sailfishos/sensorfw/blob/master/doc/mainpage.h
+ *
+ * The manager can be introspected like so:
+ *
+ * busctl introspect "com.nokia.SensorService"  "/SensorManager"
+ *
+ * The rest of the interface is only available after calling loadPlugin or requestSensor.
+ *
+ * Basic sequence of events:
+ *  - list "plugins" via "availableSensorPlugins"
+ *  - request a sensor using "requestSensor(sx)" (s=sensorpluginname x=PID)  -> returns a session id
+ *    This session id is given as parameter to any method calls on the sensor's bus
+ *  - now at least the new interfaces/object paths are available
+ *       e.g. com.nokia.SensorService /SensorManager/accelerometersensor  local.Accelerometer
+ *  - set up paramers (data rate etc)
+ *  - call the "start" method on the sensor bus
+ *  - now we can either wait for the "dataAvailable" signal, or call the
+ *    reading method (e.g. "xyz()") for the sensor
+ *  - different sensors have different reading methods, and those may return various signatures
+ *    Luckily, both Accelerometer and Gyroscope return "(tiii)".
+ */
+
+/* values copied straight from
  * https://github.com/sailfishos/sensors-glib/blob/main/sfwdbus.h
  *
- * TODO: shouldn't we make these into a struct/union?
+ * TODO: shouldn't we make some these into a struct/union/enum?
  */
+
 #define SENSORFW_SERVICE                          "com.nokia.SensorService"
 
 #define SENSORFW_MANAGER_OBJECT                   "/SensorManager"
