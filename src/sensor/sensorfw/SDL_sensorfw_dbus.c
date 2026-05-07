@@ -148,7 +148,8 @@ static int SDL_sensors_count;
 
 static int64_t pid;
 
-static void _SetDataRate(const SDL_SensorFWSensor* sensor, const double rate);
+static bool _getSensorStringProperty(const SDL_SensorFWSensor* sensor, const char* property, char* result);
+static void _setDataRate(const SDL_SensorFWSensor* sensor, const double rate);
 
 static bool SDL_SENSORFWDBUS_SensorInit(void)
 {
@@ -338,7 +339,17 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
     }
     SDL_DBus_FreeReply(&reply);
 
-    _SetDataRate(&fwsensor, 60.0f);
+    char* desc = NULL;
+    if(_getSensorStringProperty(&fwsensor, "description", desc)) {
+        if (desc != NULL)
+            SDL_LogInfo(SDL_LOG_CATEGORY_SYSTEM,
+                        "Sensor %d: %s: %s",
+                        device_index,
+                        SDL_SENSORFWDBUS_SensorGetDeviceName(device_index),
+                        desc);
+    }
+
+    _setDataRate(&fwsensor, 60.0f);
     // start sensor instance
     return SDL_DBus_CallVoidMethodOnConnection(dbus->system_conn,
                                         SENSORFW_SERVICE,
@@ -468,7 +479,7 @@ SDL_SensorDriver SDL_SENSORFWDBUS_SensorDriver = {
     SDL_SENSORFWDBUS_SensorQuit,
 };
 
-static void _SetDataRate(const SDL_SensorFWSensor* sensor, const double rate)
+static void _setDataRate(const SDL_SensorFWSensor* sensor, const double rate)
 {
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
     SDL_DBus_CallMethodOnConnection(dbus->system_conn, NULL,
@@ -479,6 +490,34 @@ static void _SetDataRate(const SDL_SensorFWSensor* sensor, const double rate)
                                     DBUS_TYPE_INT32, &sensor->session,
                                     DBUS_TYPE_DOUBLE, &rate,
                                     DBUS_TYPE_INVALID);
+}
+
+static bool _getSensorStringProperty(const SDL_SensorFWSensor* sensor, const char* property, char* result )
+{
+#ifdef SDL_USE_LIBDBUS
+
+    SDL_DBusContext *dbus = SDL_DBus_GetContext();
+
+    if (!dbus || !dbus->system_conn) {
+        return false;
+    }
+
+    DBusMessage* reply;
+    SDL_zero(reply);
+    // save_reply must be non-NULL if it's a string property
+    bool ok = SDL_DBus_QueryPropertyOnConnection(dbus->system_conn, &reply,
+                                       SENSORFW_SERVICE,
+                                       sensor->path,
+                                       sensor->interface_name,
+                                       property,
+                                       DBUS_TYPE_STRING,
+                                       &result);
+    if (reply != NULL) {
+        return true;
+    }
+    SDL_DBus_FreeReply(&reply);
+#endif
+    return ok;
 }
 
 /*
