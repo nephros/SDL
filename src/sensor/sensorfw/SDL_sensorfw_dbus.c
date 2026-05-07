@@ -132,6 +132,7 @@
 typedef struct
 {
     SDL_SensorType type;
+    int            ptype;
     const char*    name;
     SDL_SensorID   instance_id;
 
@@ -160,20 +161,13 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
 
 #ifdef SDL_USE_LIBDBUS
 
-    // TODO: we alloc exactly two sensors.
-    // SensorFW supports more, but SDL (basically)only supports accel and gyro.
-    SDL_sensors = (SDL_SensorFWSensor *)SDL_calloc(2, sizeof(*SDL_sensors));
-    if (!SDL_sensors) {
-        return false;
-    }
-
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
 
     if (!dbus || !dbus->system_conn) {
         return false;
     }
 
-    // list available plugins 
+    // list available plugins
     DBusMessage *reply = NULL;
     if (!SDL_DBus_CallMethodOnConnection(dbus->system_conn, &reply,
                                          SENSORFW_SERVICE, SENSORFW_MANAGER_OBJECT, SENSORFW_MANAGER_IFACE,
@@ -181,11 +175,24 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                                          DBUS_TYPE_INVALID))
     {
         // reply is of signature 'as'
+        // iterate once to get the count:
+        int count = 0;
         DBusMessageIter iter;
         DBusMessageIter array_iter;
         dbus->message_iter_init(reply, &iter);
         dbus->message_iter_recurse(&iter, &array_iter);
-        int count = 0;
+        do {
+            count++;
+        } while (dbus->message_iter_next(&array_iter));
+        SDL_sensors = (SDL_SensorFWSensor *)SDL_calloc(count, sizeof(*SDL_sensors));
+        if (!SDL_sensors) {
+            SDL_DBus_FreeReply(&reply);
+            return false;
+        }
+        // add the actual sensors:
+        dbus->message_iter_init(reply, &iter);
+        dbus->message_iter_recurse(&iter, &array_iter);
+        count = 0;
         do {
             if (DBUS_TYPE_STRING == dbus->message_iter_get_arg_type(&array_iter)) {
                 const char *str;
@@ -212,9 +219,23 @@ static bool SDL_SENSORFWDBUS_SensorInit(void)
                     SDL_sensors[SDL_sensors_count].path = (const char*) SDL_strdup(path);
                     SDL_sensors[SDL_sensors_count].name = "Gyroscope Sensor";
                     SDL_sensors_count++;
+                } else {
+                    SDL_sensors[SDL_sensors_count].type = SDL_SENSOR_UNKNOWN;
+                    SDL_sensors[SDL_sensors_count].ptype = count*-1;
+                    SDL_sensors[SDL_sensors_count].instance_id = SDL_GetNextObjectID();
+                    SDL_sensors[SDL_sensors_count].plugin_name = str;
+                    char* sn = SDL_strdup("");
+                    char* end = SDL_strstr(str, "sensor");
+                    SDL_strlcpy(sn, str, SDL_strlen(str)-SDL_strlen(end)+1);
+                    sn[0] = SDL_toupper(sn[0]);
+                    char* name;
+                    SDL_asprintf(&name, "%s Platform Sensor", sn);
+                    SDL_sensors[SDL_sensors_count].name = (const char*) SDL_strdup(name);
+                    SDL_free(name);
+                    SDL_sensors_count++;
 #ifdef DEBUG_SENSORS
                 } else {
-                    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin %s ignored.", str); 
+                    SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Plugin %s ignored.", str);
 #endif
                 }
                 count++;
@@ -262,12 +283,10 @@ static SDL_SensorType SDL_SENSORFWDBUS_SensorGetDeviceType(int device_index)
 
 static int SDL_SENSORFWDBUS_SensorGetDeviceNonPortableType(int device_index)
 {
-    /* TODO: enmerate this:
     if (device_index < SDL_sensors_count) {
         return SDL_sensors[device_index].ptype;
     }
-    */
-    return (int)SDL_SENSORFWDBUS_SensorGetDeviceType(device_index);
+    return -1;
 }
 
 static SDL_SensorID SDL_SENSORFWDBUS_SensorGetDeviceInstanceID(int device_index)
@@ -280,6 +299,13 @@ static SDL_SensorID SDL_SENSORFWDBUS_SensorGetDeviceInstanceID(int device_index)
 
 static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
 {
+    SDL_SensorFWSensor fwsensor = SDL_sensors[device_index];
+
+    if ((fwsensor.type == SDL_SENSOR_UNKNOWN)
+        && (-1 > SDL_SENSORFWDBUS_SensorGetDeviceNonPortableType(device_index))) {
+        SDL_SetError("not implemented.");
+        return false;
+    }
 #ifdef SDL_USE_LIBDBUS
 
     SDL_DBusContext *dbus = SDL_DBus_GetContext();
@@ -287,7 +313,6 @@ static bool SDL_SENSORFWDBUS_SensorOpen(SDL_Sensor *sensor, int device_index)
     if (!dbus || !dbus->system_conn) {
         return false;
     }
-    SDL_SensorFWSensor fwsensor = SDL_sensors[device_index];
 
 #ifdef DEBUG_SENSORS
     SDL_LogDebug(SDL_LOG_CATEGORY_SYSTEM, "Requesting sensor session for %s", fwsensor.plugin_name);
