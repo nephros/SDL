@@ -2181,9 +2181,7 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
               "${SDL3_SOURCE_DIR}/src/sensor/sensorfw/*.c"
               "${SDL3_SOURCE_DIR}/src/sensor/sensorfw/*.h"
             )
-            message(CONFIGURE_LOG "SensorFW enabled!")
-          else()
-            message(CONFIGURE_LOG "SensorFW not enabled!")
+            message(STATUS "We are unlike! Building with SensorFW support.")
           endif()
       endif()
   endif()
