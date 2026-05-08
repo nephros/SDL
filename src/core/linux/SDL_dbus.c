@@ -410,6 +410,9 @@ void SDL_DBus_FreeReply(DBusMessage **saved_reply)
 
 void SDL_DBus_ScreensaverTickle(void)
 {
+#ifdef SDL_PLATFORM_SAILFISHOS
+    return; // no way to tickle MCE?
+#endif
     if (screensaver_cookie == 0 && !inhibit_handle) { // no need to tickle if we're inhibiting.
         // org.gnome.ScreenSaver is the legacy interface, but it'll either do nothing or just be a second harmless tickle on newer systems, so we leave it for now.
         SDL_DBus_CallVoidMethod("org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", "org.gnome.ScreenSaver", "SimulateUserActivity", DBUS_TYPE_INVALID);
@@ -586,7 +589,68 @@ bool SDL_DBus_ScreensaverInhibit(bool inhibit)
     if (interface_unavailable) {
         return false;
     }
+#ifdef SDL_PLATFORM_SAILFISHOS
 
+    // silence warnings
+    (void)default_inhibit_reason;
+    (void)screensaver_cookie;
+
+    /* MCE has get_display_blanking_inhibit but no set_display_blanking_inhibit
+     */
+    const char *bus_name =          "com.nokia.mce";
+    const char *path =              "/com/nokia/mce/request";
+    const char *interface =         "com.nokia.mce.request";
+    const char *ask_method =        "get_display_blanking_pause_allowed";
+    const char *do_inhibit_method = "req_display_blanking_pause";
+    const char *no_inhibit_method = "req_display_cancel_blanking_pause";
+
+    // note we need system conn, the others (below) use session bus
+    if (!dbus.system_conn) {
+        /* We either lost connection to the session bus or were not able to
+         * load the D-Bus library at all. */
+        return false;
+    }
+    if (!interface_unavailable) {
+        if (SDL_GetSandbox() == SDL_SANDBOX_SAILJAIL)
+            SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "SDL_DBus_ScreensaverInhibit: Sailjail detected, you may not be able to use the system bus.");
+    }
+
+    // see if we are allowed to pause the timer
+    if (inhibit) {
+        DBusMessage* reply;
+        if (SDL_DBus_CallMethodOnConnection(dbus.system_conn, &reply, bus_name, path, interface,
+                                                 ask_method,
+                                                 DBUS_TYPE_INVALID))
+        {
+            DBusMessageIter iter;
+            dbus.message_iter_init(reply, &iter);
+            if (DBUS_TYPE_BOOLEAN != dbus.message_iter_get_arg_type(&iter)) {
+                SDL_DBus_FreeReply(&reply);
+                return false;
+            }
+            bool allowed = false;
+            dbus.message_iter_get_basic(&iter, &allowed);
+            if(!allowed) {
+                SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "SDL_DBus_ScreensaverInhibit: Pausing Display blanking not allowed.");
+                SDL_DBus_FreeReply(&reply);
+                return false;
+            }
+        } else {
+            interface_unavailable = true;
+            return false;
+        }
+    }
+
+    // actually call inhinit/uninhibit
+    const char* inhibit_method = inhibit ? do_inhibit_method : no_inhibit_method;
+    if (!SDL_DBus_CallVoidMethodOnConnection(dbus.system_conn, bus_name, path, interface,
+                                             inhibit_method,
+                                             DBUS_TYPE_INVALID))
+    {
+        interface_unavailable = true;
+        return false;
+    }
+#else
     if ((inhibit && (screensaver_cookie != 0 || inhibit_handle)) || (!inhibit && (screensaver_cookie == 0 && !inhibit_handle))) {
         return true;
     }
@@ -677,6 +741,7 @@ bool SDL_DBus_ScreensaverInhibit(bool inhibit)
         }
     }
 
+#endif // SDL_PLATFORM_SAILFISHOS
     return true;
 }
 
