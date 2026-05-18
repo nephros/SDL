@@ -2791,6 +2791,45 @@ bool Wayland_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Proper
             wp_alpha_modifier_surface_v1_set_multiplier(data->wp_alpha_modifier_surface_v1, SDL_MAX_UINT32);
         }
     }
+#ifdef SDL_PLATFORM_SAILFISHOS
+    const char* forced_rotation = SDL_GetHint(SDL_HINT_VIDEO_SAILFISHOS_FORCE_ROTATION);
+    if (forced_rotation != NULL) {
+        uint transform = 0;
+        if (SDL_strcmp("0", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_NORMAL;
+        } else
+        if (SDL_strcmp("90", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_90;
+        } else
+        if (SDL_strcmp("180", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_180;
+        } else
+        if (SDL_strcmp("270", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_270;
+        } else
+        if (SDL_strcmp("0f", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_FLIPPED;
+        } else
+        if (SDL_strcmp("90f", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_FLIPPED_90;
+        } else
+        if (SDL_strcmp("180f", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_FLIPPED_180;
+        } else
+        if (SDL_strcmp("270f", forced_rotation) == 0) {
+            transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
+        }
+
+        SDL_LogInfo(SDL_LOG_CATEGORY_VIDEO, "Wayland: forcing output transformation: %s (%d)", forced_rotation, transform);
+        if(!data->surface) {
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Wayland: forcing output transformation: no wl_surface!");
+        } else {
+            wl_surface_set_buffer_transform(data->surface, transform);
+        }
+    } else {
+        SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "Wayland: not forcing output transformation");
+    }
+#endif
 
     // Must be called before EGL configuration to set the drawable backbuffer size.
     ConfigureWindowGeometry(window);

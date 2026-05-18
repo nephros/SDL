@@ -3904,6 +3904,27 @@ extern "C" {
 #define SDL_HINT_VIDEO_SYNC_WINDOW_OPERATIONS "SDL_VIDEO_SYNC_WINDOW_OPERATIONS"
 
 /**
+ * A variable controlling whether the Wayland output is rotated.
+ *
+ * The Wayland buffer will have a transformation corresponding to the value used applied.
+ *
+ * The variable can be set to the following values:
+ *
+ * - "0":  No forced rotation (default)
+ * - "90":  rotate by 90 degrees counter-clockwise.
+ * - "180": rotate by 180 degrees counter-clockwise.
+ * - "270": rotate by 270 degrees counter-clockwise.
+ * - "0f":  180 degree flip around a vertical axis.
+ * - "90f": flip and rotate 90 degrees counter-clockwise
+ * - "180f": flip and rotate 180 degrees counter-clockwise
+ * - "270f": flip and rotate 270 degrees counter-clockwise
+ *
+ * This hint should be set before the main Window is created.
+ *
+ */
+#define SDL_HINT_VIDEO_SAILFISHOS_FORCE_ROTATION "SDL_VIDEO_SAILFISHOS_FORCE_ROTATION"
+
+/**
  * A variable controlling whether the libdecor Wayland backend is allowed to
  * be used.
  *
